@@ -1,11 +1,12 @@
 /**
- * Automated Verification & Test Suite
+ * Comprehensive Automated Verification & Test Suite
  * Electronics 2nd Year Materials Portal - Supabase & Telemetry Integration
  */
 
 const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
+const { execSync } = require('child_process');
 
 const ROOT_DIR = path.join(__dirname, '..');
 const htmlContent = fs.readFileSync(path.join(ROOT_DIR, 'index.html'), 'utf-8');
@@ -33,7 +34,7 @@ function it(description, fn) {
 }
 
 console.log('\n============================================================');
-console.log('🧪 RUNNING INTEGRATION & TELEMETRY TEST SUITE (RPC ALIGNED)');
+console.log('🧪 RUNNING EXTENDED INTEGRATION & SECURITY TEST SUITE');
 console.log('============================================================\n');
 
 // ---------------------------------------------------------------------------
@@ -107,6 +108,7 @@ it('Tracker correctly classifies course, folder, chip, and youtube events', () =
     APP_CONFIG: { analytics: { clickDebounceMs: 1000, debug: false } },
     ResourceRegistry: registryJs,
     SupabaseBridge: {
+      isReady: () => false,
       getCurrentUser: async () => null,
       trackPortalEvent: async () => ({ success: false })
     },
@@ -123,7 +125,8 @@ it('Tracker correctly classifies course, folder, chip, and youtube events', () =
       getElementById: () => null,
       querySelector: () => null,
       readyState: 'complete'
-    }
+    },
+    addEventListener: () => {}
   };
 
   const trackerCode = fs.readFileSync(path.join(ROOT_DIR, 'js', 'tracker.js'), 'utf-8');
@@ -133,6 +136,7 @@ it('Tracker correctly classifies course, folder, chip, and youtube events', () =
 
   assert(fakeWindow.PortalTracker, 'PortalTracker should be exposed on window');
   assert.strictEqual(fakeWindow.PortalTracker.getClientSessionId(), 'sess_test_123');
+  if (fakeWindow.PortalTracker.stopHeartbeat) fakeWindow.PortalTracker.stopHeartbeat();
 });
 
 // ---------------------------------------------------------------------------
@@ -159,7 +163,8 @@ it('Unauthenticated users have user_id strictly set to null (never spoofed)', as
     APP_CONFIG: { analytics: { debug: false } },
     ResourceRegistry: registryJs,
     SupabaseBridge: {
-      getCurrentUser: async () => null, // Guest user
+      isReady: () => false,
+      getCurrentUser: async () => null,
       trackPortalEvent: async () => { throw new Error('Database insert should NOT be called for guest'); }
     },
     location: { pathname: '/' },
@@ -170,7 +175,8 @@ it('Unauthenticated users have user_id strictly set to null (never spoofed)', as
       getElementById: () => null,
       querySelector: () => null,
       readyState: 'complete'
-    }
+    },
+    addEventListener: () => {}
   };
 
   const trackerCode = fs.readFileSync(path.join(ROOT_DIR, 'js', 'tracker.js'), 'utf-8');
@@ -188,6 +194,8 @@ it('Unauthenticated users have user_id strictly set to null (never spoofed)', as
   assert.strictEqual(dispatchedEvents[0].user_id, null, 'user_id MUST be null for unauthenticated guests');
   assert.strictEqual(dispatchedEvents[0].event_name, 'folder_link_clicked');
   assert.strictEqual(dispatchedEvents[0].resource_id, 'SUB_01_EMF_MAIN');
+
+  if (fakeWindow.PortalTracker.stopHeartbeat) fakeWindow.PortalTracker.stopHeartbeat();
 });
 
 // ---------------------------------------------------------------------------
@@ -214,9 +222,13 @@ it('Property allowlist strictly blocks arbitrary JSON or sensitive strings', () 
 });
 
 // ---------------------------------------------------------------------------
-// 7. Ordered Migrations & Idempotent Seed Re-run Test (003 + 004)
+// 7. Ordered Migrations & Idempotent Seed Re-run (003 + 004)
 // ---------------------------------------------------------------------------
 console.log('\nTest Suite 7: Ordered Migrations & Idempotent Seed Re-run (003 + 004)');
+it('Migration 003 does NOT alter resources.course_id (preserves NOT NULL constraint from 001)', () => {
+  assert(!migration003.includes('alter table public.resources alter column course_id drop not null;'), 'Must not drop course_id NOT NULL');
+});
+
 it('Migration 003 uses ON CONFLICT DO UPDATE for all courses and resources', () => {
   assert(migration003.includes('on conflict (slug) do update set'), 'Courses ON CONFLICT missing');
   assert(migration003.includes('on conflict (resource_key) do update set'), 'Resources ON CONFLICT missing');
@@ -271,10 +283,127 @@ it('Mobile responsive layout styles and touch-friendly rules are intact', () => 
   assert(htmlContent.includes('.folder-chip'), 'Folder chip styling missing');
 });
 
+// ---------------------------------------------------------------------------
+// 10. Strict ID Uniqueness & Non-Collision
+// ---------------------------------------------------------------------------
+console.log('\nTest Suite 10: Strict ID Uniqueness & Non-Collision');
+it('Zero duplicate resource_key values exist across JSON, SQL, and JS Registry', () => {
+  const jsonKeys = Object.keys(registryJson.flatIndex);
+  assert.strictEqual(jsonKeys.length, 75);
+  assert.strictEqual(new Set(jsonKeys).size, 75, 'Duplicate keys in JSON flatIndex');
+
+  const jsKeys = Object.keys(registryJs.resources);
+  assert.strictEqual(jsKeys.length, 75);
+  assert.strictEqual(new Set(jsKeys).size, 75, 'Duplicate keys in JS Registry');
+
+  const sqlMatches = migration003.match(/'(ROOT_[^']+|SUB_[^']+)'/g).map(s => s.replace(/'/g, ''));
+  const sqlKeys = sqlMatches.filter(k => k.startsWith('ROOT_') || k.startsWith('SUB_'));
+  assert.strictEqual(new Set(sqlKeys).size, 75, 'Duplicate keys in SQL Migration 003');
+});
+
+// ---------------------------------------------------------------------------
+// 11. URL Format & Integrity Validation
+// ---------------------------------------------------------------------------
+console.log('\nTest Suite 11: URL Format & Integrity Validation');
+it('Zero empty or broken URLs in registry and SQL migration', () => {
+  const flat = registryJson.flatIndex;
+  for (const [key, item] of Object.entries(flat)) {
+    if (item.url) {
+      assert(item.url.startsWith('https://'), `Malformed URL protocol in ${key}: ${item.url}`);
+      assert(!item.url.includes(' '), `Whitespace in URL for ${key}`);
+    }
+  }
+
+  const sqlUrls = migration003.match(/'(https:\/\/[^']+)'/g);
+  assert(sqlUrls && sqlUrls.length >= 75, 'Expected at least 75 URLs in SQL 003');
+  sqlUrls.forEach(u => {
+    const raw = u.replace(/'/g, '');
+    assert(raw.startsWith('https://'), `Invalid URL in SQL: ${raw}`);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 12. Topological Parent-Child Relationship Integrity
+// ---------------------------------------------------------------------------
+console.log('\nTest Suite 12: Topological Parent-Child Relationship Integrity');
+it('Every child resource references a valid parent resource that strictly precedes it in SQL 003', () => {
+  const lines = migration003.split('\n');
+  const seenResources = new Set();
+
+  lines.forEach(line => {
+    const insertMatch = line.match(/values\s*\([^,]+,\s*'([^']+)'/);
+    if (insertMatch) {
+      const resKey = insertMatch[1];
+      const parentMatch = line.match(/where resource_key = '([^']+)'/);
+      if (parentMatch) {
+        const parentKey = parentMatch[1];
+        assert(seenResources.has(parentKey), `Topological ordering broken: Parent '${parentKey}' must appear before child '${resKey}'`);
+      }
+      seenResources.add(resKey);
+    }
+  });
+
+  assert.strictEqual(seenResources.size, 75, 'Expected exactly 75 topologically ordered resources');
+});
+
+// ---------------------------------------------------------------------------
+// 13. Exact Tripartite Parity Check
+// ---------------------------------------------------------------------------
+console.log('\nTest Suite 13: Exact Tripartite Parity Check');
+it('JSON, SQL 003, and JS Registry share 100% identical sets of resource keys', () => {
+  const jsonKeys = new Set(Object.keys(registryJson.flatIndex));
+  const jsKeys = new Set(Object.keys(registryJs.resources));
+
+  assert.strictEqual(jsonKeys.size, jsKeys.size);
+  jsonKeys.forEach(k => {
+    assert(jsKeys.has(k), `Key ${k} present in JSON but missing in JS Registry`);
+  });
+
+  const sqlMatches = migration003.match(/'(ROOT_[^']+|SUB_[^']+)'/g).map(s => s.replace(/'/g, ''));
+  const sqlKeys = new Set(sqlMatches);
+  jsonKeys.forEach(k => {
+    assert(sqlKeys.has(k), `Key ${k} present in JSON but missing in SQL Migration 003`);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 14. Seed CLI Security Enforcement
+// ---------------------------------------------------------------------------
+console.log('\nTest Suite 14: Seed CLI Security Enforcement');
+it('Seed CLI immediately terminates with exit code 1 if anon key is supplied', () => {
+  const dummyAnonJwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiJ9.sig';
+  let failed = false;
+  try {
+    execSync(`node "${path.join(ROOT_DIR, 'scripts', 'seed-supabase.js')}" --url "https://dummy.supabase.co" --service-key "${dummyAnonJwt}"`, { stdio: 'pipe' });
+  } catch (err) {
+    failed = true;
+    assert.strictEqual(err.status, 1, 'Expected exit code 1 on anon key attempt');
+    assert(err.stderr.toString().includes('[SECURITY REJECTION]'), 'Expected security rejection log');
+  }
+  assert(failed, 'Seed CLI must reject anon key with non-zero exit code');
+});
+
+it('Seed CLI terminates with exit code 1 if credentials are omitted', () => {
+  let failed = false;
+  try {
+    execSync(`node "${path.join(ROOT_DIR, 'scripts', 'seed-supabase.js')}"`, {
+      stdio: 'pipe',
+      env: { ...process.env, SUPABASE_URL: '', SUPABASE_SERVICE_ROLE_KEY: '' }
+    });
+  } catch (err) {
+    failed = true;
+    assert.strictEqual(err.status, 1, 'Expected exit code 1 when credentials missing');
+    assert(err.stderr.toString().includes('[SECURITY ERROR]'), 'Expected security error log');
+  }
+  assert(failed, 'Seed CLI must fail when credentials are not supplied');
+});
+
 console.log('\n============================================================');
 console.log(`🏁 TEST SUMMARY: ${passedTests}/${totalTests} tests passed (${Math.round((passedTests/totalTests)*100)}%)`);
 console.log('============================================================\n');
 
 if (passedTests !== totalTests) {
   process.exit(1);
+} else {
+  process.exit(0);
 }

@@ -1,12 +1,13 @@
 /**
- * Student Telemetry & Tracking Module (Vanilla JavaScript)
+ * Student Telemetry & Tracking Module (Vanilla JavaScript) - Secure RPC Architecture
  * Electronics 2nd Year Materials Portal
  * 
- * Features:
- * - Robust Event Tracking: course_click, folder_link_clicked, resource_click, youtube_click, search_used, filter_changed
- * - Strict Schema & Allowlist: Conforms to 002_secure_tracking_rpcs.sql (no sensitive data or arbitrary keys)
- * - Deduplication: Prevents double-counting from multiple clicks or duplicate listeners
+ * Complies with 002_secure_tracking_rpcs.sql:
+ * - All events routed exclusively through secure RPCs (track_portal_event)
+ * - Strict allowlist: Only allowed properties (resource_type, filter_name, search_length, source)
+ * - Active Time Protection: Heartbeat pauses when tab loses focus or user switches to Drive/YouTube
  * - Safe Identity: Never fakes student identities (user_id is null for unauthenticated guests)
+ * - Deduplication: Prevents double-counting from multiple clicks or duplicate listeners
  * - Non-blocking: External links open normally without interference
  */
 
@@ -44,6 +45,21 @@
   var searchTimer = null;
   var currentCategory = 'all';
 
+  // Active Attention Tracking (Protects against crediting Drive/YouTube time)
+  var lastInteractionTime = Date.now();
+  var heartbeatInterval = null;
+  var IDLE_TIMEOUT_MS = 45000; // 45 seconds idle threshold
+
+  function markUserActive() {
+    lastInteractionTime = Date.now();
+  }
+
+  if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+    ['mousedown', 'keydown', 'scroll', 'touchstart'].forEach(function(evt) {
+      window.addEventListener(evt, markUserActive, { passive: true });
+    });
+  }
+
   // Course Slug Mapping
   var SUBJECT_TO_COURSE = {
     'SUB_01_EMF': 'emf',
@@ -77,7 +93,6 @@
   function mapDbResourceType(resType, href) {
     if (resType === 'playlist' || (href && href.indexOf('youtube.com') !== -1)) return 'youtube';
     if (['root', 'subject', 'card', 'subfolder'].indexOf(resType) !== -1) return 'folder';
-    if (resType === 'chip') return 'drive';
     return 'drive';
   }
 
@@ -103,7 +118,7 @@
       session_id: clientSessionId,
       course_id: payload.course_id || null,
       resource_id: payload.resource_id || null,
-      page_path: window.location.pathname || '/',
+      page_path: (typeof window !== 'undefined' && window.location && window.location.pathname) || '/',
       occurred_at: new Date().toISOString(),
       properties: payload.properties || {}
     };
@@ -114,9 +129,11 @@
     }
 
     // Local DOM event for testing and decoupled analytics
-    window.dispatchEvent(new CustomEvent('analytics:telemetry_event', { detail: fullPayload }));
+    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+      window.dispatchEvent(new CustomEvent('analytics:telemetry_event', { detail: fullPayload }));
+    }
 
-    // Send to Supabase via secure RPC if user is authenticated and bridge is ready
+    // Send to Supabase via secure RPC track_portal_event (ONLY for authenticated students)
     if (userId && root.SupabaseBridge && typeof root.SupabaseBridge.trackPortalEvent === 'function') {
       root.SupabaseBridge.trackPortalEvent(fullPayload).catch(function(err) {
         if (debugMode) console.warn('[Telemetry Sync Warning]', err);
@@ -125,16 +142,56 @@
   }
 
   /**
+   * Active Portal Heartbeat Routine
+   * STRICT SAFETY RULE: Only runs when the portal tab is focused, visible,
+   * and the user is not idle. Time spent outside the tab (e.g. browsing Drive
+   * or watching YouTube) is NEVER credited as portal active time.
+   */
+  function setupHeartbeat() {
+    if (heartbeatInterval) clearInterval(heartbeatInterval);
+
+    heartbeatInterval = setInterval(function() {
+      // 1. Must have valid bridge
+      if (!root.SupabaseBridge || typeof root.SupabaseBridge.isReady !== 'function' || !root.SupabaseBridge.isReady()) {
+        return;
+      }
+
+      // 2. Tab must be currently visible and focused
+      if (typeof document !== 'undefined') {
+        if (document.visibilityState !== 'visible' || (typeof document.hasFocus === 'function' && !document.hasFocus())) {
+          return; // Paused while user is in another tab (Drive/YouTube/Desktop)
+        }
+      }
+
+      // 3. User must not be idle in portal
+      var now = Date.now();
+      if ((now - lastInteractionTime) > IDLE_TIMEOUT_MS) {
+        return; // Paused due to inactivity
+      }
+
+      // Send heartbeat RPC
+      if (typeof root.SupabaseBridge.heartbeatPortalSession === 'function') {
+        root.SupabaseBridge.heartbeatPortalSession().catch(function() {});
+      }
+    }, 30000);
+  }
+
+  /**
    * 1. Click Listener (Delegated on document)
    */
   function setupClickListener() {
+    if (typeof document === 'undefined' || typeof document.addEventListener !== 'function') return;
+
     document.addEventListener('click', function(e) {
+      if (!e.target || typeof e.target.closest !== 'function') return;
       var target = e.target.closest('[data-resource-id]');
       if (!target) return;
 
       var resourceId = target.getAttribute('data-resource-id');
       var resourceType = target.getAttribute('data-resource-type') || 'unknown';
       if (!resourceId) return;
+
+      markUserActive();
 
       // Debounce rapid multiple clicks on the exact same resource within 1000ms
       var now = Date.now();
@@ -162,8 +219,6 @@
         sourceTag = 'folder_link';
       }
 
-      // Allowed properties per 002_secure_tracking_rpcs.sql:
-      // 'resource_type', 'filter_name', 'result_count', 'search_length', 'source'
       var payload = {
         course_id: courseSlug,
         resource_id: resourceId,
@@ -181,12 +236,14 @@
    * 2. Search Listener (Debounced 1500ms)
    */
   function setupSearchListener() {
+    if (typeof document === 'undefined' || typeof document.getElementById !== 'function') return;
     var searchInput = document.getElementById('directory-search');
     if (!searchInput) return;
 
     var debounceMs = (root.APP_CONFIG && root.APP_CONFIG.analytics && root.APP_CONFIG.analytics.searchDebounceMs) || 1500;
 
     searchInput.addEventListener('input', function() {
+      markUserActive();
       var query = searchInput.value.trim();
 
       if (searchTimer) clearTimeout(searchTimer);
@@ -194,8 +251,6 @@
       searchTimer = setTimeout(function() {
         if (query.length >= 2 && query !== lastSearchQuery) {
           lastSearchQuery = query;
-          // Per 002_secure_tracking_rpcs.sql: Raw search query text is deliberately NOT stored for privacy.
-          // Only search_length and source are transmitted.
           dispatchEvent('search_used', {
             course_id: null,
             resource_id: null,
@@ -213,13 +268,16 @@
    * 3. Filter Category Listener
    */
   function setupFilterListener() {
+    if (typeof document === 'undefined' || typeof document.querySelector !== 'function') return;
     var filterContainer = document.querySelector('.search-filters');
     if (!filterContainer) return;
 
     filterContainer.addEventListener('click', function(e) {
+      if (!e.target || typeof e.target.closest !== 'function') return;
       var tag = e.target.closest('.filter-tag');
       if (!tag) return;
 
+      markUserActive();
       var selectedCategory = tag.getAttribute('data-filter') || 'all';
       if (selectedCategory !== currentCategory) {
         currentCategory = selectedCategory;
@@ -239,18 +297,23 @@
     setupClickListener();
     setupSearchListener();
     setupFilterListener();
+    setupHeartbeat();
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initListeners);
-  } else {
-    initListeners();
+  if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initListeners);
+    } else {
+      initListeners();
+    }
   }
 
   root.PortalTracker = {
     dispatchEvent: dispatchEvent,
     getClientSessionId: function() { return clientSessionId; },
-    getRecentClicks: function() { return recentClicks; }
+    getRecentClicks: function() { return recentClicks; },
+    markUserActive: markUserActive,
+    stopHeartbeat: function() { if (heartbeatInterval) clearInterval(heartbeatInterval); }
   };
 
 })(typeof self !== 'undefined' ? self : this);
