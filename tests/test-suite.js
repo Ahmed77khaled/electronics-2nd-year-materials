@@ -364,26 +364,78 @@ it('JSON, SQL 003, and JS Registry share 100% identical sets of resource keys', 
 // ---------------------------------------------------------------------------
 // 14. Seed CLI Security Enforcement
 // ---------------------------------------------------------------------------
-console.log('\nTest Suite 14: Seed CLI Security Enforcement');
-it('Seed CLI immediately terminates with exit code 1 if anon key is supplied', () => {
-  const dummyAnonJwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiJ9.sig';
+console.log('\\nTest Suite 14: Seed CLI Security Enforcement');
+const seedScriptPath = path.join(ROOT_DIR, 'scripts', 'seed-supabase.js');
+const dummyAnonJwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiJ9.sig';
+const dummyServiceRoleJwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIn0.sig';
+const validateSeedEnv = values => ({
+  ...process.env,
+  SUPABASE_URL: 'https://dummy.supabase.co',
+  SUPABASE_SECRET_KEY: '',
+  SUPABASE_SERVICE_ROLE_KEY: '',
+  ...values
+});
+
+it('Seed CLI rejects legacy anon JWT keys', () => {
   let failed = false;
   try {
-    execSync(`node "${path.join(ROOT_DIR, 'scripts', 'seed-supabase.js')}" --url "https://dummy.supabase.co" --service-key "${dummyAnonJwt}"`, { stdio: 'pipe' });
+    execSync(`node "${seedScriptPath}" --validate-only`, {
+      stdio: 'pipe',
+      env: validateSeedEnv({ SUPABASE_SERVICE_ROLE_KEY: dummyAnonJwt })
+    });
   } catch (err) {
     failed = true;
-    assert.strictEqual(err.status, 1, 'Expected exit code 1 on anon key attempt');
+    assert.strictEqual(err.status, 1, 'Expected exit code 1 for anon key');
     assert(err.stderr.toString().includes('[SECURITY REJECTION]'), 'Expected security rejection log');
   }
-  assert(failed, 'Seed CLI must reject anon key with non-zero exit code');
+  assert(failed, 'Seed CLI must reject an anon key');
+});
+
+it('Seed CLI accepts current sb_secret key format in validation-only mode', () => {
+  const output = execSync(`node "${seedScriptPath}" --validate-only`, {
+    encoding: 'utf8',
+    stdio: 'pipe',
+    env: validateSeedEnv({ SUPABASE_SECRET_KEY: 'sb_secret_dummy_test_value' })
+  });
+  assert(output.includes('Secret API key [value hidden]'));
+  assert(output.includes('No network request was made'));
+});
+
+it('Seed CLI accepts legacy service_role JWT keys in validation-only mode', () => {
+  const output = execSync(`node "${seedScriptPath}" --validate-only`, {
+    encoding: 'utf8',
+    stdio: 'pipe',
+    env: validateSeedEnv({ SUPABASE_SERVICE_ROLE_KEY: dummyServiceRoleJwt })
+  });
+  assert(output.includes('Legacy service_role JWT [value hidden]'));
+});
+
+it('Seed CLI rejects publishable keys for privileged seeding', () => {
+  let failed = false;
+  try {
+    execSync(`node "${seedScriptPath}" --validate-only`, {
+      stdio: 'pipe',
+      env: validateSeedEnv({ SUPABASE_SECRET_KEY: 'sb_publishable_not_a_secret' })
+    });
+  } catch (err) {
+    failed = true;
+    assert.strictEqual(err.status, 1);
+    assert(err.stderr.toString().includes('[SECURITY REJECTION]'));
+  }
+  assert(failed, 'A publishable key must never be accepted for admin seeding');
 });
 
 it('Seed CLI terminates with exit code 1 if credentials are omitted', () => {
   let failed = false;
   try {
-    execSync(`node "${path.join(ROOT_DIR, 'scripts', 'seed-supabase.js')}"`, {
+    execSync(`node "${seedScriptPath}"`, {
       stdio: 'pipe',
-      env: { ...process.env, SUPABASE_URL: '', SUPABASE_SERVICE_ROLE_KEY: '' }
+      env: {
+        ...process.env,
+        SUPABASE_URL: '',
+        SUPABASE_SECRET_KEY: '',
+        SUPABASE_SERVICE_ROLE_KEY: ''
+      }
     });
   } catch (err) {
     failed = true;
@@ -393,6 +445,11 @@ it('Seed CLI terminates with exit code 1 if credentials are omitted', () => {
   assert(failed, 'Seed CLI must fail when credentials are not supplied');
 });
 
+it('New secret keys are sent only in apikey header; Bearer header is legacy-only', () => {
+  const seedSource = fs.readFileSync(seedScriptPath, 'utf-8');
+  assert(seedSource.includes("headers['Authorization'] = 'Bearer ' + adminApiKey"));
+  assert(seedSource.includes("if (adminKeyType === 'legacy_service_role')"));
+});
 console.log('\n============================================================');
 
  // ---------------------------------------------------------------------------
