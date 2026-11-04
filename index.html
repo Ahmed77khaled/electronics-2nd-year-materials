@@ -2268,28 +2268,16 @@
 
 })();
 
-  // ==================== Resource Telemetry Dispatcher ====================
-  document.addEventListener('click', function(event) {
-    const el = event.target.closest('[data-resource-id]');
-    if (el) {
-      const resourceId = el.getAttribute('data-resource-id');
-      const resourceType = el.getAttribute('data-resource-type') || 'unknown';
-      const eventDetail = {
-        resourceId: resourceId,
-        type: resourceType,
-        href: el.getAttribute('href') || null,
-        timestamp: new Date().toISOString()
-      };
-      
-      // Dispatch custom DOM event for any analytics provider
-      window.dispatchEvent(new CustomEvent('analytics:resource_click', { detail: eventDetail }));
-      
-      // Optional debug logging
-      // console.log('[Telemetry Resource Click]', eventDetail);
-    }
-  });
+
 
 </script>
 
+
+  <!-- ==================== Telemetry & Supabase Analytics ==================== -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="data/resourceRegistry.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/supabase-client.js"></script>
+  <script src="js/tracker.js"></script>
 </body>
 </html>
