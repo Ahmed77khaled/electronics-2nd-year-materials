@@ -3,13 +3,13 @@
  * Electronics 2nd Year Materials Portal
  * 
  * Strict Security & Data Integrity Protocol:
- * 1. ONLY permits SUPABASE_SERVICE_ROLE_KEY (rejects anon keys completely)
- * 2. Reads credentials exclusively from environment variables or explicit --service-key flag
- * 3. NEVER reads or inspects frontend config files (js/config.js)
- * 4. NEVER logs or exposes secrets (masks all credentials)
- * 5. Returns non-zero exit code (process.exit(1)) on ANY failure
- * 6. Preserves parent_resource_id relationships via topological tiered batches
- * 7. Fully Idempotent: Retains existing UUIDs on re-run via ON CONFLICT (resource_key)
+ * 1. Accepts only sb_secret_* or a legacy service_role JWT; rejects publishable/anon keys.
+ * 2. Reads secrets only from environment variables; never accepts secret values as CLI args.
+ * 3. NEVER reads or inspects frontend config files (js/config.js).
+ * 4. NEVER logs, masks, or exposes any part of an API secret.
+ * 5. Requires HTTPS for remote Supabase endpoints and supports --validate-only.
+ * 6. Preserves parent_resource_id relationships via topological tiered batches.
+ * 7. Fully idempotent: retains existing UUIDs on re-run via ON CONFLICT (resource_key).
  */
 
 const fs = require('fs');
