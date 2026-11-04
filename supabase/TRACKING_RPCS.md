@@ -1,47 +1,90 @@
-# Secure Tracking RPCs
+# Secure Tracking RPCs and Browser Session Lifecycle
 
-Migration: `002_secure_tracking_rpcs.sql`
+This document describes the current browser-to-Supabase tracking contract.
 
-Apply this migration **after** `001_student_analytics_foundation.sql`.
+## Migration order
 
-## Why this migration exists
+Apply these files in order in a dedicated development/staging Supabase project:
 
-The initial schema allowed authenticated browser clients to insert activity rows and update their own session rows directly. That is too permissive for production tracking: a modified browser could forge event names or inflate active-time counters.
+1. `001_student_analytics_foundation.sql`
+2. `002_secure_tracking_rpcs.sql`
+3. `003_seed_courses_and_resources.sql`
+4. `004_admin_analytics_views.sql`
+5. `005_admin_analytics_authorization.sql`
 
-This migration removes those direct write policies and exposes narrowly scoped Postgres RPCs instead. Each function binds writes to `auth.uid()` and checks session ownership.
+Do not expose the admin analytics views until migration 005 has been applied.
 
-## Browser call contract
+## Browser integration
 
-After Google sign-in has completed and a valid Supabase session exists:
+The static site uses the Supabase publishable/anon key only. Never put the service-role key in
+`js/config.js`, HTML, JavaScript served to browsers, or Git.
+
+The browser implementation is split across:
+
+- `js/config.js`: public project URL and publishable/anon key placeholders.
+- `js/supabase-client.js`: Auth client, UUID lookup, database-session ownership, and RPC wrapper.
+- `js/tracker.js`: interaction events, idle/focus logic, session lifecycle, and heartbeat schedule.
+- `data/resourceRegistry.js`: stable text resource keys used by the portal UI.
+
+A signed-in Supabase Auth session is a prerequisite for identified student tracking. The tracker
+does not invent identities for anonymous visitors. The Google OAuth sign-in UI/provider setup is
+a separate prerequisite; these tracking modules do not create an OAuth login screen by themselves.
+
+## Session lifecycle
+
+1. A session is created on the first meaningful interaction while the page is visible and focused
+   and the authenticated Supabase user is known.
+2. `start_portal_session` creates the database session and its `session_started` event.
+3. The database UUID returned by that RPC is the only session ID accepted by heartbeat/event RPCs.
+   A browser-generated client correlation token is never used as `sessions.id`.
+4. Concurrent start requests in one tab share one in-flight promise. The bridge also binds the
+   active session to the authenticated user ID.
+5. Heartbeats run approximately every 30 seconds only while the portal remains visible, focused,
+   and recently active. The database caps credit at 45 seconds per heartbeat; a longer gap earns
+   zero seconds.
+6. On blur/hidden, the tracker stops credit immediately and best-effort ends the database session
+   after allowing an in-flight click event to finish. A later interaction creates a new session.
+7. Idle time longer than 45 seconds is not credited. The next interaction starts a fresh session
+   baseline rather than carrying the idle gap forward.
+8. `pagehide`/tab-close termination is best effort. Browsers can interrupt unload-time network
+   requests, so a missing `ended_at` must not be interpreted as active time. Reporting should
+   treat sessions with stale heartbeats as inactive.
+
+Any future explicit logout UI must call `SupabaseBridge.endPortalSession()` before
+`supabase.auth.signOut()`, while the user's access token is still available.
+
+## RPC contract
 
 ### Start a session
 
+The browser bridge calls:
+
 ```js
-const { data: sessionId, error } = await supabase.rpc(
-  "start_portal_session",
-  { p_entry_path: window.location.pathname }
-);
+const sessionId = await SupabaseBridge.startPortalSession(window.location.pathname);
 ```
 
-The function creates the session, records `session_started`, and updates the profile's last-active timestamp.
+The database derives the owner from `auth.uid()`, creates the session, inserts
+`session_started`, and updates the profile's last-active timestamp.
 
 ### Track an event
 
 ```js
-const { data: eventId, error } = await supabase.rpc(
-  "track_portal_event",
-  {
-    p_session_id: sessionId,
-    p_event_name: "resource_click",
-    p_course_id: courseUuid,
-    p_resource_id: resourceUuid,
-    p_page_path: window.location.pathname,
-    p_properties: { resource_type: "drive", source: "resource_link" }
-  }
-);
+await SupabaseBridge.trackPortalEvent({
+  event_name: "resource_click",
+  session_id: databaseSessionUuid,
+  course_id: "oop-java",
+  resource_id: "SUB_03_OOP_JAVA_MAT_LECTURE",
+  page_path: window.location.pathname,
+  properties: { resource_type: "drive", source: "resource_chip" }
+});
 ```
 
+The bridge resolves course slugs and resource keys to database UUIDs before calling
+`track_portal_event`. The RPC independently verifies session ownership, active resource/course
+relationships, event names, and the event-property allowlist.
+
 Allowed event names:
+
 - `page_view`
 - `login_success`
 - `course_click`
@@ -53,52 +96,41 @@ Allowed event names:
 - `return_to_portal`
 
 Allowed property keys only:
+
 - `resource_type`
 - `filter_name`
 - `result_count`
 - `search_length`
 - `source`
 
-Do not send raw search text, email addresses, access tokens, or arbitrary page/query strings. Query strings and fragments are stripped from stored page paths.
+Do not send raw search text, email addresses, access tokens, or arbitrary page/query strings.
+Query strings and fragments are stripped from stored page paths.
 
-For a resource event, the database verifies that the resource exists, is active, and belongs to the supplied course. The database derives the course from the resource if no course ID is supplied.
-
-### Heartbeat
-
-```js
-const { data: creditedSeconds, error } = await supabase.rpc(
-  "heartbeat_portal_session",
-  { p_session_id: sessionId }
-);
-```
-
-Call approximately every 30 seconds, and only while the tab is visible, focused, and the user has not been idle. The database measures the interval since the previous heartbeat and credits at most 45 seconds. If more than 45 seconds elapsed, the gap earns zero seconds. This reduces accidental time inflation after sleep, backgrounding, or network pauses; it does not prove a human was actively reading.
-
-### End a session
+### Heartbeat and end
 
 ```js
-const { data: ended, error } = await supabase.rpc(
-  "end_portal_session",
-  { p_session_id: sessionId }
-);
+await SupabaseBridge.heartbeatPortalSession(databaseSessionUuid);
+await SupabaseBridge.endPortalSession(databaseSessionUuid);
 ```
 
-Call on logout and best-effort on `pagehide`/tab close. A browser close event is not guaranteed to run, so stale sessions should also be treated as ended after a suitable timeout in reporting.
+The bridge refuses a heartbeat/end request unless the UUID is its current active database session
+and belongs to the currently authenticated user.
 
-## Security properties
+## Administrative analytics
 
-- All RPCs require an authenticated Supabase user.
-- A user can only write events to their own active session.
-- A user cannot submit another user's ID; the database derives it from `auth.uid()`.
-- Direct browser INSERT/UPDATE/DELETE privileges are revoked for profiles, sessions, events, and admin roles.
-- Admin membership remains a trusted SQL-side operation.
-- Event names and event property keys are allowlisted.
+Migrations 004 and 005 create the aggregate analytics views. Migration 005 adds explicit
+`public.is_admin()` predicates, `security_invoker`, and `security_barrier` to all four global
+analytics views. Authenticated non-admin users receive no rows. Admin membership must be granted
+manually by a trusted project owner; there is no first-user-is-admin behavior.
+
+## Security properties and limitations
+
+- Browser clients cannot directly INSERT/UPDATE/DELETE profiles, sessions, events, or admin roles.
+- Tracking writes require authenticated RPCs; the database derives `user_id` from `auth.uid()`.
+- A user can only write to their own active session.
+- Event names and event-property keys are allowlisted.
 - Resource-to-course consistency is validated in the database.
-
-## Important limitations
-
-- Heartbeats are a best-effort estimate based on browser visibility/focus/idle logic. They are not proof of attention.
-- Do not count time spent on Google Drive or YouTube as portal active time.
-- The static site must still use only the Supabase publishable/anon key. Never expose the service-role key.
-- Apply migrations to a development Supabase project first and test with two separate student accounts before production.
-- This migration has been committed to a feature branch only. It has not been applied to a Supabase project or deployed to GitHub Pages.
+- Drive/YouTube time is not measured or credited as portal active time.
+- Visibility, focus, and idle checks are best-effort client signals, not proof of human attention.
+- Migrations and SQL role-simulation tests must be run in staging before production.
+- The feature branch has not been applied to a Supabase project or deployed to GitHub Pages.
