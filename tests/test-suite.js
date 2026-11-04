@@ -17,20 +17,15 @@ const migration001 = fs.readFileSync(path.join(ROOT_DIR, 'supabase', 'migrations
 const migration002 = fs.readFileSync(path.join(ROOT_DIR, 'supabase', 'migrations', '002_secure_tracking_rpcs.sql'), 'utf-8').replace(/\r\n/g, '\n');
 const migration003 = fs.readFileSync(path.join(ROOT_DIR, 'supabase', 'migrations', '003_seed_courses_and_resources.sql'), 'utf-8').replace(/\r\n/g, '\n');
 const migration004 = fs.readFileSync(path.join(ROOT_DIR, 'supabase', 'migrations', '004_admin_analytics_views.sql'), 'utf-8').replace(/\r\n/g, '\n');
+const migration005 = fs.readFileSync(path.join(ROOT_DIR, 'supabase', 'migrations', '005_admin_analytics_authorization.sql'), 'utf-8').replace(/\r\n/g, '\n');
+const trackerSource = fs.readFileSync(path.join(ROOT_DIR, 'js', 'tracker.js'), 'utf-8');
+const supabaseClientSource = fs.readFileSync(path.join(ROOT_DIR, 'js', 'supabase-client.js'), 'utf-8');
+const integrationPlan = fs.readFileSync(path.join(ROOT_DIR, 'supabase', 'tests', 'RLS_RPC_INTEGRATION_TEST_PLAN.md'), 'utf-8');
 
-let totalTests = 0;
+const tests = [];
 let passedTests = 0;
-
 function it(description, fn) {
-  totalTests++;
-  try {
-    fn();
-    passedTests++;
-    console.log(`  ✅ [PASS] ${description}`);
-  } catch (err) {
-    console.error(`  ❌ [FAIL] ${description}`);
-    console.error(`     Error: ${err.message}`);
-  }
+  tests.push({ description, fn });
 }
 
 console.log('\n============================================================');
@@ -399,11 +394,80 @@ it('Seed CLI terminates with exit code 1 if credentials are omitted', () => {
 });
 
 console.log('\n============================================================');
-console.log(`🏁 TEST SUMMARY: ${passedTests}/${totalTests} tests passed (${Math.round((passedTests/totalTests)*100)}%)`);
-console.log('============================================================\n');
 
-if (passedTests !== totalTests) {
-  process.exit(1);
-} else {
-  process.exit(0);
+ // ---------------------------------------------------------------------------
+ // 15. Database Session Lifecycle
+ // ---------------------------------------------------------------------------
+console.log('Test Suite 15: Database Session Lifecycle');
+it('Tracker starts a database session before tracking and never heartbeats a client token', () => {
+  assert(trackerSource.includes('ensureDatabaseSession'), 'ensureDatabaseSession missing');
+  assert(trackerSource.includes('bridge.startPortalSession'), 'startPortalSession is not called');
+  assert(trackerSource.includes('bridge.heartbeatPortalSession(databaseSessionId)'), 'Heartbeat does not use database UUID');
+  assert(trackerSource.includes('!databaseSessionId || !isUuid(databaseSessionId)'), 'Heartbeat UUID guard missing');
+  assert(trackerSource.includes("document.addEventListener('visibilitychange'"), 'Visibility listener missing');
+  assert(trackerSource.includes("window.addEventListener('pagehide'"), 'Pagehide listener missing');
+  assert(trackerSource.includes("window.addEventListener('blur'"), 'Blur listener missing');
+});
+
+it('Supabase Bridge binds database sessions to the authenticated owner', () => {
+  assert(supabaseClientSource.includes('activeDbSessionUserId'), 'Session owner binding missing');
+  assert(supabaseClientSource.includes('sid !== activeDbSessionId'), 'Session mismatch guard missing');
+  assert(supabaseClientSource.includes('user.id !== activeDbSessionUserId'), 'Current user ownership check missing');
+  assert(!supabaseClientSource.includes('eventData.session_id'), 'Client-supplied session IDs must not be trusted');
+});
+
+// ---------------------------------------------------------------------------
+// 16. Admin Analytics Authorization
+// ---------------------------------------------------------------------------
+console.log('Test Suite 16: Admin Analytics Authorization');
+it('All global analytics views explicitly filter on is_admin()', () => {
+  const views = ['admin_course_analytics', 'admin_resource_analytics', 'admin_daily_activity', 'admin_overview_metrics'];
+  views.forEach(viewName => {
+    const start = migration005.indexOf('create or replace view public.' + viewName);
+    assert(start >= 0, viewName + ' redefinition missing from migration 005');
+    const nextView = migration005.indexOf('create or replace view public.', start + 30);
+    const block = migration005.slice(start, nextView < 0 ? migration005.length : nextView);
+    assert(block.includes('(select public.is_admin())'), viewName + ' admin predicate missing');
+    assert(block.includes('security_invoker = true'), viewName + ' must preserve underlying RLS');
+    assert(block.includes('security_barrier = true'), viewName + ' security barrier missing');
+  });
+});
+
+it('Migration 005 removes PUBLIC/anon grants and grants authenticated SELECT only on guarded views', () => {
+  assert(migration005.includes('revoke all on public.admin_course_analytics from public, anon'));
+  assert(migration005.includes('revoke all on public.admin_resource_analytics from public, anon'));
+  assert(migration005.includes('revoke all on public.admin_daily_activity from public, anon'));
+  assert(migration005.includes('revoke all on public.admin_overview_metrics from public, anon'));
+  assert.strictEqual((migration005.match(/grant select on public\.admin_/g) || []).length, 4);
+});
+
+it('Integration plan tests anon, two students, admin, and all views with rollback', () => {
+  ['set local role anon', 'set local role authenticated', '<STUDENT_1_UUID>', '<STUDENT_2_UUID>',
+   '<ADMIN_USER_UUID>', 'public.admin_course_analytics', 'public.admin_resource_analytics',
+   'public.admin_daily_activity', 'public.admin_overview_metrics', 'rollback;']
+    .forEach(token => assert(integrationPlan.toLowerCase().includes(token.toLowerCase()), 'Missing test-plan coverage: ' + token));
+});
+
+
+async function runAllTests() {
+  for (const test of tests) {
+    try {
+      await test.fn();
+      passedTests++;
+      console.log(`  ✅ [PASS] ${test.description}`);
+    } catch (err) {
+      console.error(`  ❌ [FAIL] ${test.description}`);
+      console.error(`     Error: ${err && err.stack ? err.stack : err}`);
+    }
+  }
+
+  console.log('\\n============================================================');
+  console.log(`🏁 TEST SUMMARY: ${passedTests}/${tests.length} tests passed (${Math.round((passedTests/tests.length)*100)}%)`);
+  console.log('============================================================\\n');
+  process.exitCode = passedTests === tests.length ? 0 : 1;
 }
+
+runAllTests().catch(err => {
+  console.error('[FATAL TEST RUNNER ERROR]', err);
+  process.exitCode = 1;
+});
