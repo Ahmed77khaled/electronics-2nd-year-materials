@@ -574,6 +574,10 @@
     padding: 13px 16px 14px;
     box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
     transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+    contain: layout paint;
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
   }
 
   .card.linked:hover {
@@ -709,6 +713,10 @@
     border-radius: 12px;
     padding: 9px 12px;
     transition: border-color 0.15s, background-color 0.15s;
+    contain: layout paint;
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
   }
 
   .sub.linked:hover {
@@ -835,44 +843,104 @@
   }
 
   @media screen and (max-width: 768px) {
+    body {
+      overflow-x: hidden;
+    }
     .page {
-      width: calc(100% - 24px);
-      padding: 20px 0 40px;
+      width: 100%;
+      max-width: 100%;
+      padding: 14px 10px 36px;
+      box-sizing: border-box;
     }
     .title-card {
-      padding: 24px 18px 22px;
-      border-radius: 20px;
+      padding: 20px 14px 18px;
+      border-radius: 18px;
     }
     .title-card h1 {
-      font-size: 24px;
+      font-size: clamp(20px, 5.5vw, 24px);
+      line-height: 1.35;
     }
     .title-card .title-sub {
-      font-size: 16px;
+      font-size: 15px;
     }
     .title-desc {
-      font-size: 14px;
+      font-size: 13px;
+      line-height: 1.6;
+      margin: 10px auto 14px;
     }
     .main-drive-btn {
       width: 100%;
       justify-content: center;
-      padding: 11px 18px;
+      padding: 10px 14px;
+      font-size: clamp(12.5px, 3.8vw, 14px);
+      white-space: nowrap;
     }
+    .hint-chip {
+      font-size: 11.5px;
+      padding: 5px 10px;
+      line-height: 1.4;
+      text-align: center;
+    }
+
+    /* Swipeable Filter Tags on Mobile */
+    .search-meta {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 10px;
+    }
+    .search-filters {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      padding: 4px 2px 8px;
+      margin-top: 10px;
+      gap: 8px;
+    }
+    .search-filters::-webkit-scrollbar {
+      display: none;
+    }
+    .filter-label {
+      flex-shrink: 0;
+      white-space: nowrap;
+      font-size: 12px;
+    }
+    .filter-tag {
+      flex-shrink: 0;
+      white-space: nowrap;
+      padding: 6px 13px;
+      font-size: 12.5px;
+    }
+
     .branches {
       grid-template-columns: 1fr;
-      gap: 32px;
+      gap: 24px;
     }
     .branch-card {
-      padding: 12px 14px;
+      padding: 10px 12px;
       min-height: auto;
+      border-radius: 14px;
     }
     .branch-name {
-      font-size: 18px;
+      font-size: 17px;
+    }
+    .branch-card .num {
+      width: 38px;
+      height: 38px;
+      font-size: 16px;
+    }
+    .branch-card .ico {
+      width: 38px;
+      height: 38px;
     }
     .branch-card::before {
       display: none;
     }
+
+    /* Full width card stacks on mobile - Reclaim horizontal space */
     .stack {
-      padding-inline-start: 16px;
+      padding-inline-start: 0;
+      gap: 12px;
     }
     .stack > .card::before,
     .stack > .card::after {
@@ -881,6 +949,79 @@
     .search-kbd {
       display: none;
     }
+
+    .card {
+      padding: 12px 12px 14px;
+      border-radius: 14px;
+    }
+    .card-head {
+      gap: 8px;
+      min-height: auto;
+    }
+    .card-head .folder {
+      font-size: 15.5px;
+      line-height: 1.35;
+      word-break: break-word;
+    }
+    .sub {
+      padding: 9px 10px;
+      border-radius: 10px;
+    }
+    .sub .card-head .folder {
+      font-size: 14px;
+    }
+    .sub-drive-pill {
+      padding: 3px 9px;
+      font-size: 11px;
+    }
+  }
+
+  /* Subfolder Stacked Cards on Mobile Screens */
+  @media screen and (max-width: 600px) {
+    .items.folder-list {
+      gap: 7px;
+    }
+    .items.folder-list li {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 5px;
+      padding: 7px 10px 8px;
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-radius: 9px;
+    }
+    .items.folder-list li .chip-desc {
+      order: 1;
+      width: 100%;
+      font-size: 12.5px;
+      line-height: 1.5;
+      text-align: right;
+    }
+    .items.folder-list li .folder-chip {
+      order: 2;
+      align-self: flex-start;
+      margin-inline-start: 0;
+      padding: 3px 9px;
+      font-size: 11.5px;
+    }
+  }
+
+  /* Guard Hover Transitions to Pointer/Mouse Only */
+  @media (hover: none) {
+    .card.linked:hover,
+    .sub.linked:hover,
+    .sub-drive-pill:hover,
+    .folder-chip:hover {
+      transform: none !important;
+      box-shadow: none !important;
+    }
+  }
+  .sub-drive-pill:active,
+  .folder-chip:active,
+  .playlist:active,
+  .main-drive-btn:active {
+    transform: scale(0.98);
+    opacity: 0.9;
   }
 
   /* ==================== Print / PDF Stylesheet ==================== */
@@ -1349,7 +1490,7 @@
               <div class="card-head">
                 <span class="ico" aria-hidden="true"><svg><use href="#i-folder"/></svg></span>
                 <a class="folder" href="https://drive.google.com/drive/folders/17l2TgNnU401gMaJbHr42JlQ4Ct_nUf_s" target="_blank" rel="noopener noreferrer">
-                  <span>Logic Circuit Design(د. محمد عبد الرحمن)</span>
+                  <bdi dir="ltr">Logic Circuit Design</bdi> <span>(د. محمد عبد الرحمن)</span>
                   <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
                 </a>
                 <a class="sub-drive-pill" href="https://drive.google.com/drive/folders/17l2TgNnU401gMaJbHr42JlQ4Ct_nUf_s" target="_blank" rel="noopener noreferrer" title="فتح مجلد Logic Circuit Design على Google Drive">
@@ -1469,7 +1610,7 @@
               <div class="card-head">
                 <span class="ico" aria-hidden="true"><svg><use href="#i-folder"/></svg></span>
                 <a class="folder" href="https://drive.google.com/drive/folders/18XdbYvfPOlFSEd6BXrlJ3Wau2x32VCtd" target="_blank" rel="noopener noreferrer">
-                  <span>Oop java(د.هالة الحديدى)</span>
+                  <bdi dir="ltr">Oop java</bdi> <span>(د. هالة الحديدي)</span>
                   <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
                 </a>
                 <a class="sub-drive-pill" href="https://drive.google.com/drive/folders/18XdbYvfPOlFSEd6BXrlJ3Wau2x32VCtd" target="_blank" rel="noopener noreferrer" title="فتح مجلد Oop java(د.هالة الحديدى) على Google Drive">
@@ -1648,7 +1789,7 @@
               <div class="card-head">
                 <span class="ico" aria-hidden="true"><svg><use href="#i-folder"/></svg></span>
                 <a class="folder" href="https://drive.google.com/drive/folders/1s6QOcuNwfFiKIfHYpT2-llvKvNsEdSRz" target="_blank" rel="noopener noreferrer">
-                  <span>Electric Circle Design(د. رمضان عبد العال)</span>
+                  <bdi dir="ltr">Electric Circle Design</bdi> <span>(د. رمضان عبد العال)</span>
                   <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
                 </a>
                 <a class="sub-drive-pill" href="https://drive.google.com/drive/folders/1s6QOcuNwfFiKIfHYpT2-llvKvNsEdSRz" target="_blank" rel="noopener noreferrer" title="فتح مجلد Electric Circle Design على Google Drive">
