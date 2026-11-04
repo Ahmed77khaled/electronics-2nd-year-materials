@@ -1,163 +1,280 @@
-# 🧪 Live Supabase Integration & RLS/RPC Security Test Plan
+# Supabase RLS / RPC Integration Test Plan
 
-This document provides step-by-step instructions and executable SQL test suites for verifying Row Level Security (RLS) and RPC functions on a live Supabase development project.
+These tests are intended for a **dedicated Supabase staging project**, after applying migrations
+001 through 005 in order and seeding the 7 course rows / 75 resources. They have not been run
+against the live project.
 
-> [!IMPORTANT]
-> **Production Safety Notice:**  
-> These integration tests require a live PostgreSQL database and must be executed in a dedicated development or staging Supabase project. Never run destructive test assertions against production data.
+## Preconditions
 
----
+1. Create two disposable authenticated users through Supabase Auth (Student 1 and Student 2).
+   Do not insert incomplete rows into `auth.users` manually.
+2. Sign in each user at least once so the `auth.users` trigger creates their `public.profiles` row.
+3. Create a third disposable authenticated user for the Admin test.
+4. As the trusted database owner, manually promote only that third user:
+   ```sql
+   insert into public.admin_users (user_id, role)
+   values ('<ADMIN_USER_UUID>', 'admin')
+   on conflict (user_id) do update set role = excluded.role;
+   ```
+5. Replace the UUID placeholders in each test block with the real UUIDs from Supabase Auth.
+6. Run each test block separately in SQL Editor. Every block uses its own transaction and ends
+   with `ROLLBACK`, so test sessions/events are discarded.
 
-## 📋 Overview of Test Roles
+> SQL Editor role/claim simulation verifies PostgreSQL grants, RLS, and the `auth.uid()`-based
+> policies. It is not a substitute for testing the real Google OAuth redirect and browser JWT flow.
 
-1. **Unauthenticated Guest (Role: `anon`)**:
-   - Cannot call RPC `track_portal_event` (blocked by PostgreSQL `revoke all from anon`).
-   - Cannot directly insert/update/delete any table.
-   - Can read active courses and active resources (`courses_read_active`, `resources_read_active`).
+## Migration order
 
-2. **Authenticated Student (Role: `authenticated`, User ID: `user_student_1`)**:
-   - Can start a session via `start_portal_session`.
-   - Can track whitelisted events via `track_portal_event` for their own session only.
-   - Cannot track events with another student's `session_id` (blocked by `Session not found or not owned by current user`).
-   - Cannot read another student's profile or activity events.
-   - Cannot directly write or delete rows from `activity_events`, `sessions`, or `profiles`.
-   - Cannot promote themselves to `admin_users`.
+1. `001_student_analytics_foundation.sql`
+2. `002_secure_tracking_rpcs.sql`
+3. `003_seed_courses_and_resources.sql`
+4. `004_admin_analytics_views.sql`
+5. `005_admin_analytics_authorization.sql`
 
-3. **Authenticated Student 2 (Role: `authenticated`, User ID: `user_student_2`)**:
-   - Serves as the isolation benchmark to verify cross-tenant data isolation.
+Do not release the analytics views before migration 005 is applied.
 
-4. **Trusted Administrator (Role: `authenticated` + listed in `admin_users`)**:
-   - Can view system-wide analytics views (`admin_course_analytics`, `admin_resource_analytics`, `admin_daily_activity`, `admin_overview_metrics`).
-   - Can view student profiles via `profiles_read_own_or_admin`.
+## Test 1 — Anonymous visitor
 
----
+Expected: active courses/resources remain publicly readable; tracking RPCs and table writes are denied.
 
-## 🧪 Test Case 1: Unauthenticated Guest Restrictions
-
-### Objective:
-Verify that anon callers cannot log events or modify any tables.
-
-### Execution in Supabase SQL Editor:
 ```sql
--- Simulate anon caller
-set role anon;
+begin;
+set local role anon;
+select set_config('request.jwt.claims', '{"role":"anon"}', true);
 
--- 1. Verify read access to active resources (Allowed)
-select count(*) from public.resources where is_active = true;
--- Expect: Returns 75
+select count(*) as active_resources
+from public.resources
+where is_active = true;
+-- Expected after seed: 75.
 
--- 2. Verify direct insert is blocked (Forbidden)
-insert into public.activity_events (user_id, event_name)
-values ('00000000-0000-0000-0000-000000000000', 'course_click');
--- Expect: ERROR: permission denied for table activity_events
+do $$
+declare
+  v_blocked boolean := false;
+begin
+  begin
+    perform public.start_portal_session('/');
+  exception when insufficient_privilege then
+    v_blocked := true;
+  end;
+  if not v_blocked then
+    raise exception 'FAIL: anon unexpectedly executed start_portal_session';
+  end if;
+end $$;
 
--- 3. Verify RPC call is blocked (Forbidden)
-select public.start_portal_session('/');
--- Expect: ERROR: permission denied for function start_portal_session
-
-reset role;
+rollback;
 ```
 
----
+## Test 2 — Student isolation, session ownership, and administrative denial
 
-## 🧪 Test Case 2: Student Session Ownership & RPC Event Tracking
+Replace both student UUIDs. Both users must already exist in Auth and have profile rows.
 
-### Objective:
-Verify that an authenticated student can only write to their own session and cannot spoof another student's session.
-
-### Execution:
 ```sql
--- Setup two test users (run as postgres/service_role)
-insert into auth.users (id, email)
-values
-  ('11111111-1111-4111-a111-111111111111', 'student1@test.com'),
-  ('22222222-2222-4222-a222-222222222222', 'student2@test.com')
-on conflict (id) do nothing;
-
--- 1. Student 1 starts a session
+begin;
 set local role authenticated;
-set local "request.jwt.claims" = '{"sub": "11111111-1111-4111-a111-111111111111", "role": "authenticated"}';
-
-select public.start_portal_session('/portal') as session_1_id;
--- Note the returned UUID (e.g. 'sess_uuid_1')
-
--- 2. Student 1 tracks a valid event (Allowed)
-select public.track_portal_event(
-  p_session_id => '<session_1_id>',
-  p_event_name => 'resource_click',
-  p_course_id => null,
-  p_resource_id => null,
-  p_page_path => '/portal',
-  p_properties => '{"resource_type": "drive", "source": "resource_chip"}'::jsonb
+select set_config('request.jwt.claim.sub', '<STUDENT_1_UUID>', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"<STUDENT_1_UUID>","role":"authenticated"}',
+  true
 );
--- Expect: Returns event_id (bigint > 0)
 
--- 3. Switch to Student 2 and attempt to write to Student 1's session (Must Fail)
-set local "request.jwt.claims" = '{"sub": "22222222-2222-4222-a222-222222222222", "role": "authenticated"}';
+do $$
+declare
+  v_session_1 uuid;
+  v_count bigint;
+  v_blocked boolean;
+begin
+  if auth.uid() <> '<STUDENT_1_UUID>'::uuid then
+    raise exception 'FAIL: Student 1 JWT claim was not applied';
+  end if;
 
-select public.track_portal_event(
-  p_session_id => '<session_1_id>',
-  p_event_name => 'resource_click',
-  p_course_id => null,
-  p_resource_id => null,
-  p_page_path => '/portal',
-  p_properties => '{"resource_type": "drive"}'::jsonb
-);
--- Expect: ERROR: Session not found or not owned by current user (SQLSTATE: 42501)
+  v_session_1 := public.start_portal_session('/rls-test');
+  if v_session_1 is null then
+    raise exception 'FAIL: Student 1 could not start a session';
+  end if;
 
--- 4. Student 2 tries to read Student 1's events (Must return zero rows)
-select count(*) from public.activity_events
-where user_id = '11111111-1111-4111-a111-111111111111';
--- Expect: Returns 0 rows (Cross-student reading blocked by RLS)
+  perform public.track_portal_event(
+    p_session_id => v_session_1,
+    p_event_name => 'resource_click',
+    p_course_id => null,
+    p_resource_id => null,
+    p_page_path => '/rls-test',
+    p_properties => '{"resource_type":"drive","source":"integration_test"}'::jsonb
+  );
 
-reset role;
+  -- Direct table writes must be denied even for the row owner.
+  v_blocked := false;
+  begin
+    insert into public.activity_events (user_id, event_name)
+    values ('<STUDENT_1_UUID>'::uuid, 'resource_click');
+  exception when insufficient_privilege then
+    v_blocked := true;
+  end;
+  if not v_blocked then
+    raise exception 'FAIL: Student directly inserted an activity event';
+  end if;
+
+  -- Switch the simulated JWT to Student 2 within this same transaction.
+  perform set_config('request.jwt.claim.sub', '<STUDENT_2_UUID>', true);
+  perform set_config('request.jwt.claim.role', 'authenticated', true);
+  perform set_config(
+    'request.jwt.claims',
+    '{"sub":"<STUDENT_2_UUID>","role":"authenticated"}',
+    true
+  );
+
+  if auth.uid() <> '<STUDENT_2_UUID>'::uuid then
+    raise exception 'FAIL: Student 2 JWT claim was not applied';
+  end if;
+
+  select count(*) into v_count
+  from public.activity_events
+  where user_id = '<STUDENT_1_UUID>'::uuid;
+  if v_count <> 0 then
+    raise exception 'FAIL: Student 2 can read Student 1 events';
+  end if;
+
+  select count(*) into v_count
+  from public.profiles
+  where id = '<STUDENT_1_UUID>'::uuid;
+  if v_count <> 0 then
+    raise exception 'FAIL: Student 2 can read Student 1 profile';
+  end if;
+
+  -- Student 2 cannot use Student 1's database session.
+  v_blocked := false;
+  begin
+    perform public.track_portal_event(
+      p_session_id => v_session_1,
+      p_event_name => 'resource_click',
+      p_page_path => '/rls-test',
+      p_properties => '{}'::jsonb
+    );
+  exception when insufficient_privilege then
+    v_blocked := true;
+  end;
+  if not v_blocked then
+    raise exception 'FAIL: Student 2 wrote to Student 1 session';
+  end if;
+
+  -- All four global analytics views must return no rows to a student.
+  if exists (select 1 from public.admin_course_analytics) then
+    raise exception 'FAIL: Student can read admin_course_analytics';
+  end if;
+  if exists (select 1 from public.admin_resource_analytics) then
+    raise exception 'FAIL: Student can read admin_resource_analytics';
+  end if;
+  if exists (select 1 from public.admin_daily_activity) then
+    raise exception 'FAIL: Student can read admin_daily_activity';
+  end if;
+  if exists (select 1 from public.admin_overview_metrics) then
+    raise exception 'FAIL: Student can read admin_overview_metrics';
+  end if;
+
+  -- Student 2 cannot self-promote.
+  v_blocked := false;
+  begin
+    insert into public.admin_users (user_id, role)
+    values ('<STUDENT_2_UUID>'::uuid, 'owner');
+  exception when insufficient_privilege then
+    v_blocked := true;
+  end;
+  if not v_blocked then
+    raise exception 'FAIL: Student promoted themselves to admin';
+  end if;
+
+  -- Arbitrary event properties must be rejected by RPC validation.
+  v_blocked := false;
+  begin
+    perform public.track_portal_event(
+      p_session_id => v_session_1,
+      p_event_name => 'search_used',
+      p_page_path => '/rls-test',
+      p_properties => '{"raw_query":"not allowed"}'::jsonb
+    );
+  exception when invalid_parameter_value then
+    v_blocked := true;
+  end;
+  if not v_blocked then
+    raise exception 'FAIL: RPC accepted a non-allowlisted property';
+  end if;
+end $$;
+
+rollback;
 ```
 
----
+Expected: the block completes without an exception. The expected-denial checks are caught inside
+the PL/pgSQL block; an uncaught exception indicates a failed test or setup issue.
 
-## 🧪 Test Case 3: Admin Role Self-Promotion & Dashboard Isolation
+## Test 3 — Administrator access
 
-### Objective:
-Verify that a student cannot insert themselves into `admin_users` or access admin views.
+Replace the admin UUID with the account manually inserted into `public.admin_users`.
+Use seeded courses/resources from migration 003.
 
-### Execution:
 ```sql
+begin;
 set local role authenticated;
-set local "request.jwt.claims" = '{"sub": "11111111-1111-4111-a111-111111111111", "role": "authenticated"}';
-
--- 1. Student attempts self-promotion (Must Fail)
-insert into public.admin_users (user_id, role)
-values ('11111111-1111-4111-a111-111111111111', 'owner');
--- Expect: ERROR: permission denied for table admin_users
-
--- 2. Student queries admin view (Must return only their own stats or empty)
-select * from public.admin_overview_metrics;
--- RLS security_invoker prevents exposing other students' data
-
-reset role;
-```
-
----
-
-## 🧪 Test Case 4: Property Allowlist Protection
-
-### Objective:
-Verify that arbitrary or sensitive properties (e.g. search queries or tokens) are blocked by RPC validation.
-
-### Execution:
-```sql
-set local role authenticated;
-set local "request.jwt.claims" = '{"sub": "11111111-1111-4111-a111-111111111111", "role": "authenticated"}';
-
-select public.track_portal_event(
-  p_session_id => '<session_1_id>',
-  p_event_name => 'search_used',
-  p_properties => '{"raw_query": "student sensitive search", "secret": "123"}'::jsonb
+select set_config('request.jwt.claim.sub', '<ADMIN_USER_UUID>', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"<ADMIN_USER_UUID>","role":"authenticated"}',
+  true
 );
--- Expect: ERROR: Invalid or unsupported event properties (SQLSTATE: 22023)
 
-reset role;
+do $$
+begin
+  if not public.is_admin() then
+    raise exception 'FAIL: configured administrator is not recognized';
+  end if;
+
+  if not exists (select 1 from public.profiles) then
+    raise exception 'FAIL: administrator cannot read profiles';
+  end if;
+
+  if not exists (select 1 from public.admin_course_analytics) then
+    raise exception 'FAIL: administrator cannot read course analytics';
+  end if;
+
+  if not exists (select 1 from public.admin_resource_analytics) then
+    raise exception 'FAIL: administrator cannot read resource analytics';
+  end if;
+
+  if not exists (select 1 from public.admin_overview_metrics) then
+    raise exception 'FAIL: administrator cannot read overview metrics';
+  end if;
+end $$;
+
+rollback;
 ```
 
----
-*Documented for integration audit and automated QA protocol.*
+## Test 4 — Browser session lifecycle
+
+Run these checks in a staging copy of the website with valid public Supabase URL/key:
+
+1. Sign in as Student 1 and interact with the portal (click, scroll, key input). Confirm exactly one
+   row is created in `sessions` for the active tab and one `session_started` event exists.
+2. Wait for a heartbeat while the page is visible, focused, and recently active. Confirm
+   `active_seconds` increases by no more than 45 seconds per heartbeat.
+3. Open a Drive/YouTube link in a new tab or switch browser tabs. Confirm the portal session is
+   ended shortly after the portal loses focus/visibility. No heartbeat should run while away.
+4. Return to the portal and interact again. Confirm a new database session starts; the old session
+   is not reused.
+5. Leave the portal idle for more than 45 seconds, then interact again. Confirm a new session
+   baseline is created and the idle gap is not credited.
+6. Refresh or close the tab. Confirm `pagehide` attempts to end the active session. Treat this
+   as best effort because browsers and network shutdown can interrupt unload-time requests.
+7. Open two separate portal tabs under the same account. Each tab must have its own database
+   session UUID; neither tab may heartbeat or end the other tab's session.
+8. Sign out, then sign in as Student 2. Confirm the old user's session is never used for Student 2.
+
+## What these tests do not prove
+
+- They do not prove that a person is paying attention to the screen. Client-side activity and
+  heartbeat logic can only provide a best-effort estimate.
+- They do not measure time spent in Google Drive or YouTube.
+- SQL Editor claim simulation does not verify the Google OAuth provider configuration or
+  GitHub Pages redirect settings.
+- The browser can fail to deliver an unload-time end RPC; stale open sessions should be treated
+  as inactive after heartbeat expiry and optionally cleaned up by a trusted scheduled job.
