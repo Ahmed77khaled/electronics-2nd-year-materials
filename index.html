@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>دليل الماتريال المجمعة — الفرقة الثانية هندسة إلكترونيات — الترم الأول</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
 <meta name="description" content="دليل ومخطط وصول مباشر لكافة مراجع ومحاضرات وشيتات وامتحانات مواد الترم الأول - الفرقة الثانية هندسة إلكترونيات">
 <style>
   :root {
@@ -38,7 +41,9 @@
   body {
     background: var(--bg);
     color: var(--ink);
-    font-family: "Cairo", "Segoe UI", "Noto Sans Arabic", Tahoma, "DejaVu Sans", Arial, sans-serif;
+    font-family: 'Cairo', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     direction: rtl;
     line-height: 1.6;
     min-height: 100vh;
@@ -1023,6 +1028,82 @@
     color: var(--cyan);
   }
 
+
+  /* Modern Arabic & English Typography */
+  body, button, input, select, textarea {
+    font-family: 'Cairo', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  .ltr, .folder, .folder-chip bdi, .sub-drive-pill, .branch-name .ltr, .badge, .num {
+    font-family: 'Cairo', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    unicode-bidi: isolate;
+  }
+
+  /* Compact Direct Folder Chip */
+  .folder-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: #F0F9FF;
+    border: 1px solid #BAE6FD;
+    border-radius: 6px;
+    padding: 2px 8px;
+    color: #0369A1;
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none;
+    vertical-align: baseline;
+    margin-inline-end: 6px;
+    transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  }
+
+  .folder-chip:hover {
+    background: linear-gradient(135deg, #0284C7, #06B6D4);
+    color: #FFFFFF !important;
+    border-color: transparent;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(2, 132, 199, 0.3);
+  }
+
+  .folder-chip .chip-folder-ico {
+    width: 14px;
+    height: 14px;
+    flex: none;
+  }
+
+  .folder-chip .chip-ext {
+    width: 11px;
+    height: 11px;
+    opacity: 0.7;
+    flex: none;
+    transition: opacity 0.15s;
+  }
+
+  .folder-chip:hover .chip-ext {
+    opacity: 1;
+    color: #FFFFFF;
+  }
+
+  .folder-chip bdi {
+    font-family: 'Cairo', 'Plus Jakarta Sans', sans-serif;
+    font-weight: 700;
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
+
+  .chip-desc {
+    color: var(--ink);
+    font-size: 13.5px;
+    line-height: 1.8;
+  }
+
+  .chip-sep {
+    margin: 0 6px;
+    color: #94A3B8;
+    font-weight: 700;
+  }
+
 </style>
 </head>
 <body>
@@ -1259,22 +1340,28 @@
                 </div>
                 <ul class="items">
                   <li>
-                    <a class="item-link" href="https://drive.google.com/drive/folders/1PbWJOLufGkGppWVXomKt8XYq9lLW9Qjh" target="_blank" rel="noopener noreferrer" title="فتح مجلد Midterms مباشرة">
-                      📁 <strong>Midterms:</strong> ميدترمات 2022 حتى 2026 كاملة بالحلول
-                      <svg class="inline-ext" aria-hidden="true"><use href="#i-external"/></svg>
+                    <a class="folder-chip" href="https://drive.google.com/drive/folders/1PbWJOLufGkGppWVXomKt8XYq9lLW9Qjh" target="_blank" rel="noopener noreferrer" title="فتح مجلد Midterms مباشرة">
+                      <svg class="chip-folder-ico" aria-hidden="true"><use href="#i-folder"/></svg>
+                      <bdi dir="ltr">Midterms</bdi>
+                      <svg class="chip-ext" aria-hidden="true"><use href="#i-external"/></svg>
                     </a>
+                    <span class="chip-desc">ميدترمات 2022 حتى 2026 كاملة بالحلول</span>
                   </li>
                   <li>
-                    <a class="item-link" href="https://drive.google.com/drive/folders/1BEPvTfDLsw4Rcu7YsvzFdDtTvPGJuSYy" target="_blank" rel="noopener noreferrer" title="فتح مجلد Finals مباشرة">
-                      📁 <strong>Finals:</strong> فاينل 2023-2024 و 2024-2025 بالحل النموذجي
-                      <svg class="inline-ext" aria-hidden="true"><use href="#i-external"/></svg>
+                    <a class="folder-chip" href="https://drive.google.com/drive/folders/1BEPvTfDLsw4Rcu7YsvzFdDtTvPGJuSYy" target="_blank" rel="noopener noreferrer" title="فتح مجلد Finals مباشرة">
+                      <svg class="chip-folder-ico" aria-hidden="true"><use href="#i-folder"/></svg>
+                      <bdi dir="ltr">Finals</bdi>
+                      <svg class="chip-ext" aria-hidden="true"><use href="#i-external"/></svg>
                     </a>
+                    <span class="chip-desc">فاينل 2023-2024 و 2024-2025 بالحل النموذجي</span>
                   </li>
                   <li>
-                    <a class="item-link" href="https://drive.google.com/drive/folders/19SgktUiKQjzX7RjyLgb0-io_hEY1voFf" target="_blank" rel="noopener noreferrer" title="فتح مجلد Quizzes مباشرة">
-                      📁 <strong>Quizzes:</strong> كويز 1 وكويز 2 لعام 2025-2026 بالحل
-                      <svg class="inline-ext" aria-hidden="true"><use href="#i-external"/></svg>
+                    <a class="folder-chip" href="https://drive.google.com/drive/folders/19SgktUiKQjzX7RjyLgb0-io_hEY1voFf" target="_blank" rel="noopener noreferrer" title="فتح مجلد Quizzes مباشرة">
+                      <svg class="chip-folder-ico" aria-hidden="true"><use href="#i-folder"/></svg>
+                      <bdi dir="ltr">Quizzes</bdi>
+                      <svg class="chip-ext" aria-hidden="true"><use href="#i-external"/></svg>
                     </a>
+                    <span class="chip-desc">كويز 1 وكويز 2 لعام 2025-2026 بالحل</span>
                   </li>
                 </ul>
               </div>
@@ -1358,38 +1445,50 @@
               <p class="desc">الماتريال كاملة: محاضرات 1-6 + سكاشن + لابات + شيتات وتكليفات</p>
               <ul class="items">
                 <li>
-                  <a class="item-link" href="https://drive.google.com/drive/folders/16_ugmx-nda6q-zw-EXY6dDuTuacJ0lTO" target="_blank" rel="noopener noreferrer">
-                    📁 <strong>lecture:</strong> المحاضرات 1 إلى 6 كاملة (Review, Objects, Constructors, GUI...)
-                    <svg class="inline-ext" aria-hidden="true"><use href="#i-external"/></svg>
+                  <a class="folder-chip" href="https://drive.google.com/drive/folders/16_ugmx-nda6q-zw-EXY6dDuTuacJ0lTO" target="_blank" rel="noopener noreferrer" title="فتح مجلد lecture">
+                    <svg class="chip-folder-ico" aria-hidden="true"><use href="#i-folder"/></svg>
+                    <bdi dir="ltr">lecture</bdi>
+                    <svg class="chip-ext" aria-hidden="true"><use href="#i-external"/></svg>
                   </a>
+                  <span class="chip-desc">المحاضرات 1 إلى 6 كاملة (Review, Objects, Constructors, GUI...)</span>
                 </li>
                 <li>
-                  <a class="item-link" href="https://drive.google.com/drive/folders/1-ffJzBP2Gs0_xXHW7xOkCyQzY3TVd7v0" target="_blank" rel="noopener noreferrer">
-                    📁 <strong>labs:</strong> لابات العملي 3 و 4
-                    <svg class="inline-ext" aria-hidden="true"><use href="#i-external"/></svg>
+                  <a class="folder-chip" href="https://drive.google.com/drive/folders/1-ffJzBP2Gs0_xXHW7xOkCyQzY3TVd7v0" target="_blank" rel="noopener noreferrer" title="فتح مجلد labs">
+                    <svg class="chip-folder-ico" aria-hidden="true"><use href="#i-folder"/></svg>
+                    <bdi dir="ltr">labs</bdi>
+                    <svg class="chip-ext" aria-hidden="true"><use href="#i-external"/></svg>
                   </a>
-                  &bull;
-                  <a class="item-link" href="https://drive.google.com/drive/folders/1M1KiYf1V-prG4Xj_98uLV_cWxW5oh7ah" target="_blank" rel="noopener noreferrer">
-                    📁 <strong>sections:</strong> السكاشن
-                    <svg class="inline-ext" aria-hidden="true"><use href="#i-external"/></svg>
+                  <span class="chip-desc">لابات العملي 3 و 4</span>
+                  <span class="chip-sep">&bull;</span>
+                  <a class="folder-chip" href="https://drive.google.com/drive/folders/1M1KiYf1V-prG4Xj_98uLV_cWxW5oh7ah" target="_blank" rel="noopener noreferrer" title="فتح مجلد sections">
+                    <svg class="chip-folder-ico" aria-hidden="true"><use href="#i-folder"/></svg>
+                    <bdi dir="ltr">sections</bdi>
+                    <svg class="chip-ext" aria-hidden="true"><use href="#i-external"/></svg>
                   </a>
+                  <span class="chip-desc">السكاشن</span>
                 </li>
                 <li>
-                  <a class="item-link" href="https://drive.google.com/drive/folders/1xnSk6agCcZ3nnJ0q-N8cH1necDFEt-LL" target="_blank" rel="noopener noreferrer">
-                    📁 <strong>sheets&amp;Assighments:</strong> شيتات 1 إلى 4 وتكليفاتها بالحلول
-                    <svg class="inline-ext" aria-hidden="true"><use href="#i-external"/></svg>
+                  <a class="folder-chip" href="https://drive.google.com/drive/folders/1xnSk6agCcZ3nnJ0q-N8cH1necDFEt-LL" target="_blank" rel="noopener noreferrer" title="فتح مجلد sheets&amp;Assighments">
+                    <svg class="chip-folder-ico" aria-hidden="true"><use href="#i-folder"/></svg>
+                    <bdi dir="ltr">sheets&amp;Assighments</bdi>
+                    <svg class="chip-ext" aria-hidden="true"><use href="#i-external"/></svg>
                   </a>
+                  <span class="chip-desc">شيتات 1 إلى 4 وتكليفاتها بالحلول</span>
                 </li>
                 <li>
-                  <a class="item-link" href="https://drive.google.com/drive/folders/1_I7m_6gy8trRPpjWO4b0Nig8hGdd-ZK1" target="_blank" rel="noopener noreferrer">
-                    📁 <strong>exams:</strong> ميدترم وكويزات المعهد
-                    <svg class="inline-ext" aria-hidden="true"><use href="#i-external"/></svg>
+                  <a class="folder-chip" href="https://drive.google.com/drive/folders/1_I7m_6gy8trRPpjWO4b0Nig8hGdd-ZK1" target="_blank" rel="noopener noreferrer" title="فتح مجلد exams">
+                    <svg class="chip-folder-ico" aria-hidden="true"><use href="#i-folder"/></svg>
+                    <bdi dir="ltr">exams</bdi>
+                    <svg class="chip-ext" aria-hidden="true"><use href="#i-external"/></svg>
                   </a>
-                  &bull;
-                  <a class="item-link" href="https://drive.google.com/drive/folders/13mJgJcbwrVxVM06NNkByyMaTZDEw9uVt" target="_blank" rel="noopener noreferrer">
-                    📁 <strong>book:</strong> كتاب المرجع
-                    <svg class="inline-ext" aria-hidden="true"><use href="#i-external"/></svg>
+                  <span class="chip-desc">ميدترم وكويزات المعهد</span>
+                  <span class="chip-sep">&bull;</span>
+                  <a class="folder-chip" href="https://drive.google.com/drive/folders/13mJgJcbwrVxVM06NNkByyMaTZDEw9uVt" target="_blank" rel="noopener noreferrer" title="فتح مجلد book">
+                    <svg class="chip-folder-ico" aria-hidden="true"><use href="#i-folder"/></svg>
+                    <bdi dir="ltr">book</bdi>
+                    <svg class="chip-ext" aria-hidden="true"><use href="#i-external"/></svg>
                   </a>
+                  <span class="chip-desc">كتاب المرجع</span>
                 </li>
               </ul>
             </article>
@@ -1411,21 +1510,27 @@
               <p class="desc">بنك الامتحانات: فاينل وميدترم وكويزات</p>
               <ul class="items">
                 <li>
-                  <a class="item-link" href="https://drive.google.com/drive/folders/11bdg5s8AF-6Lu5OeWf_psHLyM8mE1r5P" target="_blank" rel="noopener noreferrer">
-                    📁 <strong>Final Exams:</strong> أرشيف امتحانات الفاينل السابقة مع الحلول
-                    <svg class="inline-ext" aria-hidden="true"><use href="#i-external"/></svg>
+                  <a class="folder-chip" href="https://drive.google.com/drive/folders/11bdg5s8AF-6Lu5OeWf_psHLyM8mE1r5P" target="_blank" rel="noopener noreferrer" title="فتح مجلد Final Exams">
+                    <svg class="chip-folder-ico" aria-hidden="true"><use href="#i-folder"/></svg>
+                    <bdi dir="ltr">Final Exams</bdi>
+                    <svg class="chip-ext" aria-hidden="true"><use href="#i-external"/></svg>
                   </a>
+                  <span class="chip-desc">أرشيف امتحانات الفاينل السابقة مع الحلول</span>
                 </li>
                 <li>
-                  <a class="item-link" href="https://drive.google.com/drive/folders/1fnchkZk2ju544e7aDpqZzvgY0iGNZZZb" target="_blank" rel="noopener noreferrer">
-                    📁 <strong>midterms:</strong> نماذج إجابة الميدترم
-                    <svg class="inline-ext" aria-hidden="true"><use href="#i-external"/></svg>
+                  <a class="folder-chip" href="https://drive.google.com/drive/folders/1fnchkZk2ju544e7aDpqZzvgY0iGNZZZb" target="_blank" rel="noopener noreferrer" title="فتح مجلد midterms">
+                    <svg class="chip-folder-ico" aria-hidden="true"><use href="#i-folder"/></svg>
+                    <bdi dir="ltr">midterms</bdi>
+                    <svg class="chip-ext" aria-hidden="true"><use href="#i-external"/></svg>
                   </a>
-                  &bull;
-                  <a class="item-link" href="https://drive.google.com/drive/folders/1tOwNm4UHXRwMWokCzhkGMrIfiwXD0PV-" target="_blank" rel="noopener noreferrer">
-                    📁 <strong>quizes:</strong> كويزات 1 حتى 4 بنماذج الحل
-                    <svg class="inline-ext" aria-hidden="true"><use href="#i-external"/></svg>
+                  <span class="chip-desc">نماذج إجابة الميدترم</span>
+                  <span class="chip-sep">&bull;</span>
+                  <a class="folder-chip" href="https://drive.google.com/drive/folders/1tOwNm4UHXRwMWokCzhkGMrIfiwXD0PV-" target="_blank" rel="noopener noreferrer" title="فتح مجلد quizes">
+                    <svg class="chip-folder-ico" aria-hidden="true"><use href="#i-folder"/></svg>
+                    <bdi dir="ltr">quizes</bdi>
+                    <svg class="chip-ext" aria-hidden="true"><use href="#i-external"/></svg>
                   </a>
+                  <span class="chip-desc">كويزات 1 حتى 4 بنماذج الحل</span>
                 </li>
               </ul>
             </article>
@@ -1554,16 +1659,20 @@
                 </div>
                 <ul class="items">
                   <li>
-                    <a class="item-link" href="https://drive.google.com/drive/folders/1_Wi30o3KZCbhuc2O_8oRQQSSmSNq5yCf" target="_blank" rel="noopener noreferrer">
-                      📁 <strong>Finals:</strong> أسئلة وحل فاينل 2024-2025 (14 صفحة)
-                      <svg class="inline-ext" aria-hidden="true"><use href="#i-external"/></svg>
+                    <a class="folder-chip" href="https://drive.google.com/drive/folders/1_Wi30o3KZCbhuc2O_8oRQQSSmSNq5yCf" target="_blank" rel="noopener noreferrer" title="فتح مجلد Finals">
+                      <svg class="chip-folder-ico" aria-hidden="true"><use href="#i-folder"/></svg>
+                      <bdi dir="ltr">Finals</bdi>
+                      <svg class="chip-ext" aria-hidden="true"><use href="#i-external"/></svg>
                     </a>
+                    <span class="chip-desc">أسئلة وحل فاينل 2024-2025 (14 صفحة)</span>
                   </li>
                   <li>
-                    <a class="item-link" href="https://drive.google.com/drive/folders/1tiLDfAyAUPVnszkxVw7B_rFKI08E1Mlz" target="_blank" rel="noopener noreferrer">
-                      📁 <strong>Midterms:</strong> نموذج حل امتحان الميدترم
-                      <svg class="inline-ext" aria-hidden="true"><use href="#i-external"/></svg>
+                    <a class="folder-chip" href="https://drive.google.com/drive/folders/1tiLDfAyAUPVnszkxVw7B_rFKI08E1Mlz" target="_blank" rel="noopener noreferrer" title="فتح مجلد Midterms">
+                      <svg class="chip-folder-ico" aria-hidden="true"><use href="#i-folder"/></svg>
+                      <bdi dir="ltr">Midterms</bdi>
+                      <svg class="chip-ext" aria-hidden="true"><use href="#i-external"/></svg>
                     </a>
+                    <span class="chip-desc">نموذج حل امتحان الميدترم</span>
                   </li>
                 </ul>
               </div>
