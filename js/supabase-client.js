@@ -1,46 +1,47 @@
 /**
  * Supabase Client Wrapper (Vanilla JavaScript) - Secure RPC Architecture
- * Electronics 2nd Year Materials Portal
- * 
- * Complies with 002_secure_tracking_rpcs.sql:
- * - All tracking writes use SECURITY DEFINER RPCs (track_portal_event, start_portal_session, etc.)
- * - Zero direct table INSERTs to activity_events or sessions
- * - Maps textual resource_keys (e.g. 'SUB_03_OOP_JAVA_MAT_LECTURE') to database UUIDs
- * - Never passes non-UUID strings to UUID parameters
- * - Safe offline / fallback mode: Never throws unhandled exceptions
+ * All tracking writes use authenticated, ownership-checked RPCs.
  */
-
 (function(root) {
   'use strict';
 
   var clientInstance = null;
   var isConfigured = false;
   var isReady = false;
-
-  // UUID Caches
   var resourceKeyToUuidMap = {};
   var courseSlugToUuidMap = {};
+  var mappingPromise = null;
   var activeDbSessionId = null;
+  var activeDbSessionUserId = null;
+  var sessionStartPromise = null;
+  var sessionStartPromiseUserId = null;
+  var authListeners = [];
 
   var UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-  function isUuid(val) {
-    return typeof val === 'string' && UUID_REGEX.test(val);
+  function isUuid(value) {
+    return typeof value === 'string' && UUID_REGEX.test(value);
+  }
+
+  function getPathname() {
+    return (root.location && root.location.pathname) || '/';
   }
 
   function init() {
     var config = root.APP_CONFIG && root.APP_CONFIG.supabase;
     if (!config || !config.url || !config.anonKey) {
+      isConfigured = false;
+      isReady = false;
       if (root.APP_CONFIG && root.APP_CONFIG.analytics && root.APP_CONFIG.analytics.debug) {
-        console.info('[SupabaseBridge] Operating in offline mode. Credentials missing in js/config.js');
+        console.info('[SupabaseBridge] Offline mode: Supabase credentials are not configured.');
       }
       return;
     }
 
-    if (typeof root.supabase === 'undefined' || typeof root.supabase.createClient !== 'function') {
-      if (root.APP_CONFIG && root.APP_CONFIG.analytics && root.APP_CONFIG.analytics.debug) {
-        console.warn('[SupabaseBridge] Supabase library is not loaded.');
-      }
+    if (!root.supabase || typeof root.supabase.createClient !== 'function') {
+      isConfigured = true;
+      isReady = false;
+      console.warn('[SupabaseBridge] Supabase SDK is not loaded.');
       return;
     }
 
@@ -55,9 +56,23 @@
       isConfigured = true;
       isReady = true;
 
-      // Prefetch course and resource UUID mappings in background
-      prefetchUuidMappings();
+      if (clientInstance.auth && typeof clientInstance.auth.onAuthStateChange === 'function') {
+        clientInstance.auth.onAuthStateChange(function(event, session) {
+          var nextUserId = session && session.user ? session.user.id : null;
+          if (!nextUserId || (activeDbSessionUserId && activeDbSessionUserId !== nextUserId)) {
+            activeDbSessionId = null;
+            activeDbSessionUserId = null;
+          }
+          // Never run async Supabase operations inside the auth callback itself.
+          setTimeout(function() {
+            authListeners.slice().forEach(function(listener) {
+              try { listener(event, session || null); } catch (e) {}
+            });
+          }, 0);
+        });
+      }
 
+      mappingPromise = prefetchUuidMappings();
     } catch (err) {
       console.error('[SupabaseBridge] Initialization error:', err);
       clientInstance = null;
@@ -65,183 +80,254 @@
     }
   }
 
-  /**
-   * Prefetch course and resource UUIDs to ensure text keys map cleanly to database UUIDs
-   */
   async function prefetchUuidMappings() {
-    if (!isReady || !clientInstance) return;
+    if (!isReady || !clientInstance) return false;
     try {
-      var coursesRes = await clientInstance.from('courses').select('id, slug').eq('is_active', true);
-      if (coursesRes && coursesRes.data) {
-        coursesRes.data.forEach(function(c) {
-          courseSlugToUuidMap[c.slug] = c.id;
-        });
-      }
+      var results = await Promise.all([
+        clientInstance.from('courses').select('id, slug').eq('is_active', true),
+        clientInstance.from('resources').select('id, resource_key').eq('is_active', true)
+      ]);
+      var coursesRes = results[0];
+      var resourcesRes = results[1];
 
-      var resourcesRes = await clientInstance.from('resources').select('id, resource_key, course_id').eq('is_active', true);
-      if (resourcesRes && resourcesRes.data) {
-        resourcesRes.data.forEach(function(r) {
-          resourceKeyToUuidMap[r.resource_key] = r.id;
-        });
-      }
-    } catch (e) {
-      // Non-blocking background fetch
-    }
-  }
+      if (coursesRes && coursesRes.error) throw coursesRes.error;
+      if (resourcesRes && resourcesRes.error) throw resourcesRes.error;
 
-  // Attempt initialization
-  init();
-
-  /**
-   * Get current authenticated user safely
-   */
-  async function getCurrentUser() {
-    if (!isReady || !clientInstance) return null;
-    try {
-      var res = await clientInstance.auth.getUser();
-      if (res && res.data && res.data.user) {
-        return res.data.user;
-      }
-      return null;
-    } catch (err) {
-      return null;
-    }
-  }
-
-  /**
-   * Start a secure portal session via RPC (002_secure_tracking_rpcs.sql)
-   */
-  async function startPortalSession(entryPath) {
-    if (!isReady || !clientInstance) return null;
-    try {
-      var res = await clientInstance.rpc('start_portal_session', {
-        p_entry_path: entryPath || window.location.pathname
+      (coursesRes.data || []).forEach(function(course) {
+        if (isUuid(course.id) && course.slug) courseSlugToUuidMap[course.slug] = course.id;
       });
-      if (res && res.data && isUuid(res.data)) {
-        activeDbSessionId = res.data;
-        return activeDbSessionId;
+      (resourcesRes.data || []).forEach(function(resource) {
+        if (isUuid(resource.id) && resource.resource_key) {
+          resourceKeyToUuidMap[resource.resource_key] = resource.id;
+        }
+      });
+      return true;
+    } catch (err) {
+      if (root.APP_CONFIG && root.APP_CONFIG.analytics && root.APP_CONFIG.analytics.debug) {
+        console.warn('[SupabaseBridge] UUID mapping prefetch failed:', err.message || err);
       }
-      return null;
-    } catch (err) {
-      return null;
-    }
-  }
-
-  /**
-   * Send heartbeat for the active session
-   */
-  async function heartbeatPortalSession(sessionId) {
-    var sid = sessionId || activeDbSessionId;
-    if (!isReady || !clientInstance || !isUuid(sid)) return 0;
-    try {
-      var res = await clientInstance.rpc('heartbeat_portal_session', {
-        p_session_id: sid
-      });
-      return (res && res.data) || 0;
-    } catch (err) {
-      return 0;
-    }
-  }
-
-  /**
-   * End portal session
-   */
-  async function endPortalSession(sessionId) {
-    var sid = sessionId || activeDbSessionId;
-    if (!isReady || !clientInstance || !isUuid(sid)) return false;
-    try {
-      var res = await clientInstance.rpc('end_portal_session', {
-        p_session_id: sid
-      });
-      activeDbSessionId = null;
-      return !!(res && res.data);
-    } catch (err) {
       return false;
     }
   }
 
+  init();
+
+  async function getCurrentUser() {
+    if (!isReady || !clientInstance) return null;
+    try {
+      var result = await clientInstance.auth.getUser();
+      return result && result.data && result.data.user ? result.data.user : null;
+    } catch (err) {
+      return null;
+    }
+  }
+
   /**
-   * Record portal event via secure RPC: track_portal_event
-   * Strictly validates UUIDs and allowlisted property keys
+   * Create at most one database session per signed-in browser-tab lifecycle.
+   * The returned value is always the sessions.id UUID, never a client token.
    */
+  async function startPortalSession(entryPath) {
+    if (!isReady || !clientInstance) return null;
+
+    var user = await getCurrentUser();
+    if (!user || !user.id) return null;
+
+    if (activeDbSessionId && activeDbSessionUserId === user.id) {
+      return activeDbSessionId;
+    }
+
+    if (sessionStartPromise) {
+      var pending = sessionStartPromise;
+      var pendingUserId = sessionStartPromiseUserId;
+      if (pendingUserId === user.id) return pending;
+      await pending;
+      return startPortalSession(entryPath);
+    }
+
+    sessionStartPromiseUserId = user.id;
+    var requestedUserId = user.id;
+    var promise = (async function() {
+      try {
+        var latestUser = await getCurrentUser();
+        if (!latestUser || latestUser.id !== requestedUserId) return null;
+
+        var result = await clientInstance.rpc('start_portal_session', {
+          p_entry_path: entryPath || getPathname()
+        });
+        if (result && result.error) throw result.error;
+        if (!result || !isUuid(result.data)) return null;
+
+        var confirmedUser = await getCurrentUser();
+        if (!confirmedUser || confirmedUser.id !== requestedUserId) {
+          return null;
+        }
+
+        activeDbSessionId = result.data;
+        activeDbSessionUserId = requestedUserId;
+        return activeDbSessionId;
+      } catch (err) {
+        if (root.APP_CONFIG && root.APP_CONFIG.analytics && root.APP_CONFIG.analytics.debug) {
+          console.warn('[SupabaseBridge] Could not start portal session:', err.message || err);
+        }
+        return null;
+      }
+    })();
+
+    sessionStartPromise = promise;
+    try {
+      return await promise;
+    } finally {
+      if (sessionStartPromise === promise) {
+        sessionStartPromise = null;
+        sessionStartPromiseUserId = null;
+      }
+    }
+  }
+
+  async function heartbeatPortalSession(sessionId) {
+    if (!isReady || !clientInstance || !activeDbSessionId) {
+      return { success: false, creditedSeconds: 0, reason: 'no_active_session' };
+    }
+
+    var sid = sessionId || activeDbSessionId;
+    if (!isUuid(sid) || sid !== activeDbSessionId) {
+      return { success: false, creditedSeconds: 0, reason: 'session_mismatch' };
+    }
+
+    var user = await getCurrentUser();
+    if (!user || user.id !== activeDbSessionUserId) {
+      return { success: false, creditedSeconds: 0, reason: 'session_user_mismatch' };
+    }
+
+    try {
+      var result = await clientInstance.rpc('heartbeat_portal_session', {
+        p_session_id: sid
+      });
+      if (result && result.error) {
+        return { success: false, creditedSeconds: 0, error: result.error };
+      }
+      return {
+        success: true,
+        creditedSeconds: Number(result && result.data) || 0
+      };
+    } catch (err) {
+      return { success: false, creditedSeconds: 0, error: err };
+    }
+  }
+
+  async function endPortalSession(sessionId) {
+    var sid = sessionId || activeDbSessionId;
+    if (!isReady || !clientInstance || !isUuid(sid)) return false;
+
+    // Only the user who owns the currently active tab session may end it.
+    if (!activeDbSessionId || sid !== activeDbSessionId) return false;
+    var ownerId = activeDbSessionUserId;
+    var user = await getCurrentUser();
+    if (!user || !ownerId || user.id !== ownerId) return false;
+
+    try {
+      var result = await clientInstance.rpc('end_portal_session', {
+        p_session_id: sid
+      });
+      if (result && result.error) return false;
+      return !!(result && result.data);
+    } catch (err) {
+      return false;
+    } finally {
+      if (activeDbSessionId === sid) {
+        activeDbSessionId = null;
+        activeDbSessionUserId = null;
+      }
+    }
+  }
+
   async function trackPortalEvent(eventData) {
     if (!isReady || !clientInstance) {
       return { success: false, reason: 'unconfigured' };
     }
 
-    // Must be an authenticated student
+    eventData = eventData || {};
     var user = await getCurrentUser();
     if (!user || !user.id) {
       return { success: false, reason: 'unauthenticated_user_skipped' };
     }
 
-    // Resolve or establish a valid database session ID
     var dbSessionId = activeDbSessionId;
-    if (!dbSessionId && isUuid(eventData.session_id)) {
-      dbSessionId = eventData.session_id;
-    }
-
-    if (!dbSessionId) {
+    if (!dbSessionId || activeDbSessionUserId !== user.id) {
       dbSessionId = await startPortalSession(eventData.page_path);
     }
-
     if (!isUuid(dbSessionId)) {
       return { success: false, reason: 'no_active_db_session' };
     }
 
-    // Resolve UUID for resource: Text keys MUST NEVER be passed as UUIDs!
+    // Wait for the initial key -> UUID lookup, then refresh once if needed.
+    if (mappingPromise) await mappingPromise;
+
     var resourceUuid = null;
     if (eventData.resource_id) {
-      if (isUuid(eventData.resource_id)) {
-        resourceUuid = eventData.resource_id;
-      } else if (resourceKeyToUuidMap[eventData.resource_id]) {
-        resourceUuid = resourceKeyToUuidMap[eventData.resource_id];
+      resourceUuid = isUuid(eventData.resource_id)
+        ? eventData.resource_id
+        : resourceKeyToUuidMap[eventData.resource_id] || null;
+      if (!resourceUuid) {
+        mappingPromise = prefetchUuidMappings();
+        await mappingPromise;
+        resourceUuid = resourceKeyToUuidMap[eventData.resource_id] || null;
+      }
+      if (!isUuid(resourceUuid)) {
+        return { success: false, reason: 'resource_mapping_missing' };
       }
     }
 
-    // Resolve UUID for course
     var courseUuid = null;
     if (eventData.course_id) {
-      if (isUuid(eventData.course_id)) {
-        courseUuid = eventData.course_id;
-      } else if (courseSlugToUuidMap[eventData.course_id]) {
-        courseUuid = courseSlugToUuidMap[eventData.course_id];
+      courseUuid = isUuid(eventData.course_id)
+        ? eventData.course_id
+        : courseSlugToUuidMap[eventData.course_id] || null;
+      if (!courseUuid) {
+        mappingPromise = prefetchUuidMappings();
+        await mappingPromise;
+        courseUuid = courseSlugToUuidMap[eventData.course_id] || null;
+      }
+      if (!isUuid(courseUuid)) {
+        return { success: false, reason: 'course_mapping_missing' };
       }
     }
 
-    // Whitelist event properties per 002_secure_tracking_rpcs.sql
-    // Allowed keys: 'resource_type', 'filter_name', 'result_count', 'search_length', 'source'
+    var allowedKeys = ['resource_type', 'filter_name', 'result_count', 'search_length', 'source'];
     var cleanProps = {};
-    if (eventData.properties && typeof eventData.properties === 'object') {
-      var allowedKeys = ['resource_type', 'filter_name', 'result_count', 'search_length', 'source'];
-      allowedKeys.forEach(function(k) {
-        if (eventData.properties[k] !== undefined && eventData.properties[k] !== null) {
-          cleanProps[k] = eventData.properties[k];
-        }
+    if (eventData.properties && typeof eventData.properties === 'object' && !Array.isArray(eventData.properties)) {
+      allowedKeys.forEach(function(key) {
+        var value = eventData.properties[key];
+        if (value !== undefined && value !== null) cleanProps[key] = value;
       });
     }
 
     try {
-      var rpcPayload = {
+      var result = await clientInstance.rpc('track_portal_event', {
         p_session_id: dbSessionId,
         p_event_name: eventData.event_name,
         p_course_id: courseUuid,
         p_resource_id: resourceUuid,
-        p_page_path: eventData.page_path || window.location.pathname,
+        p_page_path: eventData.page_path || getPathname(),
         p_properties: cleanProps
-      };
-
-      var res = await clientInstance.rpc('track_portal_event', rpcPayload);
-      if (res.error) {
-        return { success: false, error: res.error };
+      });
+      if (result && result.error) {
+        return { success: false, error: result.error };
       }
-      return { success: true, event_id: res.data };
+      return { success: true, event_id: result ? result.data : null };
     } catch (err) {
-      return { success: false, error: err.message };
+      return { success: false, error: err.message || String(err) };
     }
   }
 
-  // Public Interface
+  function onAuthStateChange(listener) {
+    if (typeof listener !== 'function') return function() {};
+    authListeners.push(listener);
+    return function unsubscribe() {
+      authListeners = authListeners.filter(function(item) { return item !== listener; });
+    };
+  }
+
   root.SupabaseBridge = {
     isConfigured: function() { return isConfigured; },
     isReady: function() { return isReady; },
@@ -250,11 +336,11 @@
     startPortalSession: startPortalSession,
     heartbeatPortalSession: heartbeatPortalSession,
     endPortalSession: endPortalSession,
+    getActiveSessionId: function() { return activeDbSessionId; },
     trackPortalEvent: trackPortalEvent,
-    // Alias for backwards compatibility with tests
     insertActivityEvent: trackPortalEvent,
+    onAuthStateChange: onAuthStateChange,
     isUuid: isUuid,
     reinit: init
   };
-
 })(typeof self !== 'undefined' ? self : this);
