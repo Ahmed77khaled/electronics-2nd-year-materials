@@ -32,6 +32,7 @@
   var lifecycleGeneration = 0;
   var pendingPauseTimer = null;
   var pendingTrackingWrites = 0;
+  var heartbeatPromise = null;
   var recentClicks = {};
   var lastSearchQuery = '';
   var searchTimer = null;
@@ -158,7 +159,27 @@
     }
   }
 
-  function pauseDatabaseSession(reason) {
+  function sendHeartbeat(sessionId) {
+    var bridge = root.SupabaseBridge;
+    if (!sessionId || !isUuid(sessionId) || !bridge ||
+        typeof bridge.heartbeatPortalSession !== 'function') {
+      return Promise.resolve(null);
+    }
+    if (heartbeatPromise) return heartbeatPromise;
+
+    var request = Promise.resolve().then(function() {
+      return bridge.heartbeatPortalSession(sessionId);
+    }).catch(function() {
+      return null;
+    });
+    heartbeatPromise = request;
+    request.then(function() {
+      if (heartbeatPromise === request) heartbeatPromise = null;
+    });
+    return request;
+  }
+
+  function pauseDatabaseSession(reason, interactionAtPause) {
     lifecycleGeneration++;
     lastInteractionTime = 0;
     var sessionId = databaseSessionId;
@@ -166,7 +187,13 @@
 
     if (sessionId && isUuid(sessionId) && root.SupabaseBridge &&
         typeof root.SupabaseBridge.endPortalSession === 'function') {
-      root.SupabaseBridge.endPortalSession(sessionId).then(function() {
+      var mayFlushFinalInterval = interactionAtPause &&
+        (Date.now() - interactionAtPause) <= IDLE_TIMEOUT_MS;
+      var finalHeartbeat = mayFlushFinalInterval ? sendHeartbeat(sessionId) : Promise.resolve(null);
+
+      finalHeartbeat.then(function() {
+        return root.SupabaseBridge.endPortalSession(sessionId);
+      }).then(function() {
         if (root.APP_CONFIG && root.APP_CONFIG.analytics && root.APP_CONFIG.analytics.debug) {
           console.info('[PortalTracker] Database session closed:', reason || 'pause');
         }
@@ -177,6 +204,7 @@
   function schedulePause(reason) {
     // Stop accruing time immediately. The short grace period allows a just-fired
     // resource click RPC to finish before the session-end RPC closes the session.
+    var interactionAtPause = lastInteractionTime;
     lastInteractionTime = 0;
     cancelPendingPause();
     var scheduledAt = Date.now();
@@ -191,7 +219,7 @@
         return;
       }
       pendingPauseTimer = null;
-      pauseDatabaseSession(reason || 'tab-hidden');
+      pauseDatabaseSession(reason || 'tab-hidden', interactionAtPause);
     }
 
     pendingPauseTimer = setTimeout(attemptPause, PAUSE_GRACE_MS);
@@ -299,7 +327,7 @@
       if (!lastInteractionTime || (Date.now() - lastInteractionTime) > IDLE_TIMEOUT_MS) return;
       if (typeof bridge.heartbeatPortalSession !== 'function') return;
 
-      bridge.heartbeatPortalSession(databaseSessionId).catch(function() {});
+      sendHeartbeat(databaseSessionId);
     }, 30000);
   }
 
@@ -309,11 +337,11 @@
       window.addEventListener('focus', function() { cancelPendingPause(); });
       window.addEventListener('pagehide', function() {
         cancelPendingPause();
-        pauseDatabaseSession('pagehide');
+        pauseDatabaseSession('pagehide', lastInteractionTime);
       });
       window.addEventListener('beforeunload', function() {
         cancelPendingPause();
-        pauseDatabaseSession('beforeunload');
+        pauseDatabaseSession('beforeunload', lastInteractionTime);
       });
     }
 
