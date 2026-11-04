@@ -936,6 +936,93 @@
       padding: 10px 0 !important;
     }
   }
+
+  /* Subfolder Direct Drive Action Pill & Child Item Links */
+  .card-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 34px;
+    flex-wrap: wrap;
+  }
+  .sub-drive-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-inline-start: auto;
+    padding: 4px 11px;
+    background: rgba(6, 182, 212, 0.09);
+    border: 1px solid rgba(6, 182, 212, 0.32);
+    border-radius: 999px;
+    color: #0e7490;
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: none;
+    line-height: 1.2;
+    white-space: nowrap;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    cursor: pointer;
+  }
+  .sub-drive-pill:hover {
+    background: linear-gradient(135deg, #0ea5e9, #06b6d4);
+    border-color: transparent;
+    color: #FFFFFF !important;
+    box-shadow: 0 3px 12px rgba(6, 182, 212, 0.35);
+    transform: translateY(-1px);
+  }
+  .sub-drive-pill:active {
+    transform: translateY(0);
+  }
+  .sub-drive-pill .pill-ico {
+    width: 14px;
+    height: 14px;
+    flex: none;
+  }
+  .sub-drive-pill .pill-arrow {
+    width: 11px;
+    height: 11px;
+    flex: none;
+    opacity: 0.8;
+    transition: transform 0.2s ease;
+  }
+  .sub-drive-pill:hover .pill-arrow {
+    transform: translateX(-2px) translateY(-1px);
+    opacity: 1;
+  }
+  .sub-drive-pill:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+  .item-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--navy);
+    font-weight: 600;
+    text-decoration: none;
+    background: rgba(241, 245, 249, 0.9);
+    padding: 2px 7px;
+    border-radius: 6px;
+    border: 1px solid #E2E8F0;
+    transition: all 0.15s ease;
+  }
+  .item-link:hover {
+    background: var(--cyan-tint);
+    border-color: var(--cyan-bright);
+    color: #0891b2;
+    transform: translateY(-1px);
+  }
+  .item-link .inline-ext {
+    width: 11px;
+    height: 11px;
+    opacity: 0.6;
+    flex: none;
+  }
+  .item-link:hover .inline-ext {
+    opacity: 1;
+    color: var(--cyan);
+  }
+
 </style>
 </head>
 <body>
@@ -1048,6 +1135,11 @@
                   <span>مجالات (د.رجب السحيمى)</span>
                   <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
                 </a>
+                <a class="sub-drive-pill" href="https://drive.google.com/drive/folders/16wbcWi28jzkrDxE0VkuKWQxY54ntcHpp" target="_blank" rel="noopener noreferrer" title="فتح مجلد مجالات (د.رجب السحيمى) على Google Drive">
+                  <svg class="pill-ico" aria-hidden="true"><use href="#i-drive"/></svg>
+                  <span>فتح المجلد</span>
+                  <svg class="pill-arrow" aria-hidden="true"><use href="#i-external"/></svg>
+                </a>
               </div>
               <p class="desc">المجلد المعتمد الشامل لمقرر المجالات الكهرومغناطيسية</p>
 
@@ -1058,6 +1150,11 @@
                   <a class="folder" href="https://drive.google.com/drive/folders/11uJnVqIpCF3Wy2VzAVCDoJ6vnZ9dacFW" target="_blank" rel="noopener noreferrer">
                     <span>material</span>
                     <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
+                  </a>
+                  <a class="sub-drive-pill" href="https://drive.google.com/drive/folders/11uJnVqIpCF3Wy2VzAVCDoJ6vnZ9dacFW" target="_blank" rel="noopener noreferrer" title="فتح فولدر material على Google Drive">
+                    <svg class="pill-ico" aria-hidden="true"><use href="#i-drive"/></svg>
+                    <span>فتح الفولدر</span>
+                    <svg class="pill-arrow" aria-hidden="true"><use href="#i-external"/></svg>
                   </a>
                 </div>
                 <p class="desc">ملخص المحاضرات والسكاشن + أسئلة صح وغلط</p>
@@ -1076,6 +1173,11 @@
                     <span>sheets</span>
                     <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
                   </a>
+                  <a class="sub-drive-pill" href="https://drive.google.com/drive/folders/1mXY9NP1Sq3pKexiRKuO17ZIRJ8_qFqmO" target="_blank" rel="noopener noreferrer" title="فتح فولدر sheets على Google Drive">
+                    <svg class="pill-ico" aria-hidden="true"><use href="#i-drive"/></svg>
+                    <span>فتح الفولدر</span>
+                    <svg class="pill-arrow" aria-hidden="true"><use href="#i-external"/></svg>
+                  </a>
                 </div>
                 <p class="desc">شيتات 1 إلى 5 كاملة بالحلول</p>
                 <ul class="items">
@@ -1092,6 +1194,11 @@
                     <span>Exams</span>
                     <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
                   </a>
+                  <a class="sub-drive-pill" href="https://drive.google.com/drive/folders/18rInBwg3HI83y5wf_RTmvjb3Qtp9UrDk" target="_blank" rel="noopener noreferrer" title="فتح فولدر Exams على Google Drive">
+                    <svg class="pill-ico" aria-hidden="true"><use href="#i-drive"/></svg>
+                    <span>فتح الفولدر</span>
+                    <svg class="pill-arrow" aria-hidden="true"><use href="#i-external"/></svg>
+                  </a>
                 </div>
                 <p class="desc">حلول الميدترم + كويز 1 و 2</p>
                 <ul class="items">
@@ -1105,7 +1212,7 @@
       </section>
 
       <!-- ==================== 2) Logic Circuits ==================== -->
-      <section class="branch" data-subject="logic circuits الدوائر المنطقية محمد عبد الرحمن عبدالرحمن flip flop exams lectures revision special questions">
+      <section class="branch" data-subject="logic circuits الدوائر المنطقية محمد عبد الرحمن عبدالرحمن flip flop exams finals midterms quizzes lectures revision special questions">
         <div class="branch-card linked">
           <span class="num">2</span>
           <div class="branch-text">
@@ -1121,12 +1228,17 @@
         <div class="branch-body">
           <div class="stack">
             <!-- Card 1: Logic Circuit Design (Main Organized Folder) -->
-            <article class="card linked" data-card="logic circuit design د. محمد عبد الرحمن الماتريال كاملة امتحانات فاينل ميدترم كويزات مراجعة سكاشن">
+            <article class="card linked" data-card="logic circuit design د. محمد عبد الرحمن الماتريال كاملة امتحانات فاينل finals ميدترم midterms كويزات quizzes مراجعة سكاشن">
               <div class="card-head">
                 <span class="ico" aria-hidden="true"><svg><use href="#i-folder"/></svg></span>
                 <a class="folder" href="https://drive.google.com/drive/folders/17l2TgNnU401gMaJbHr42JlQ4Ct_nUf_s" target="_blank" rel="noopener noreferrer">
                   <span>Logic Circuit Design(د. محمد عبد الرحمن)</span>
                   <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
+                </a>
+                <a class="sub-drive-pill" href="https://drive.google.com/drive/folders/17l2TgNnU401gMaJbHr42JlQ4Ct_nUf_s" target="_blank" rel="noopener noreferrer" title="فتح مجلد Logic Circuit Design على Google Drive">
+                  <svg class="pill-ico" aria-hidden="true"><use href="#i-drive"/></svg>
+                  <span>فتح المجلد</span>
+                  <svg class="pill-arrow" aria-hidden="true"><use href="#i-external"/></svg>
                 </a>
               </div>
               <p class="desc">المجلد المعتمد الشامل لمقرر الدوائر المنطقية</p>
@@ -1139,11 +1251,31 @@
                     <span>Exams</span>
                     <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
                   </a>
+                  <a class="sub-drive-pill" href="https://drive.google.com/drive/folders/1w329Ks7o8KRjkj9a-9eaRz8x60uqHE87" target="_blank" rel="noopener noreferrer" title="فتح فولدر الامتحانات بالكامل على Google Drive">
+                    <svg class="pill-ico" aria-hidden="true"><use href="#i-drive"/></svg>
+                    <span>فتح فولدر الامتحانات</span>
+                    <svg class="pill-arrow" aria-hidden="true"><use href="#i-external"/></svg>
+                  </a>
                 </div>
                 <ul class="items">
-                  <li>ميدترمات 2022 حتى 2026 كاملة بالحلول</li>
-                  <li>فاينل 2023-2024 و 2024-2025 بالحل النموذجي</li>
-                  <li>كويز 1 وكويز 2 لعام 2025-2026 بالحل</li>
+                  <li>
+                    <a class="item-link" href="https://drive.google.com/drive/folders/1PbWJOLufGkGppWVXomKt8XYq9lLW9Qjh" target="_blank" rel="noopener noreferrer" title="فتح مجلد Midterms مباشرة">
+                      📁 <strong>Midterms:</strong> ميدترمات 2022 حتى 2026 كاملة بالحلول
+                      <svg class="inline-ext" aria-hidden="true"><use href="#i-external"/></svg>
+                    </a>
+                  </li>
+                  <li>
+                    <a class="item-link" href="https://drive.google.com/drive/folders/1BEPvTfDLsw4Rcu7YsvzFdDtTvPGJuSYy" target="_blank" rel="noopener noreferrer" title="فتح مجلد Finals مباشرة">
+                      📁 <strong>Finals:</strong> فاينل 2023-2024 و 2024-2025 بالحل النموذجي
+                      <svg class="inline-ext" aria-hidden="true"><use href="#i-external"/></svg>
+                    </a>
+                  </li>
+                  <li>
+                    <a class="item-link" href="https://drive.google.com/drive/folders/19SgktUiKQjzX7RjyLgb0-io_hEY1voFf" target="_blank" rel="noopener noreferrer" title="فتح مجلد Quizzes مباشرة">
+                      📁 <strong>Quizzes:</strong> كويز 1 وكويز 2 لعام 2025-2026 بالحل
+                      <svg class="inline-ext" aria-hidden="true"><use href="#i-external"/></svg>
+                    </a>
+                  </li>
                 </ul>
               </div>
 
@@ -1154,6 +1286,11 @@
                   <a class="folder" href="https://drive.google.com/drive/folders/1azBWzbV-ScH4nV4DDiA3DKWGptlfwGy6" target="_blank" rel="noopener noreferrer">
                     <span>Lectures &amp; Revision</span>
                     <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
+                  </a>
+                  <a class="sub-drive-pill" href="https://drive.google.com/drive/folders/1azBWzbV-ScH4nV4DDiA3DKWGptlfwGy6" target="_blank" rel="noopener noreferrer" title="فتح فولدر Lectures &amp; Revision على Google Drive">
+                    <svg class="pill-ico" aria-hidden="true"><use href="#i-drive"/></svg>
+                    <span>فتح الفولدر</span>
+                    <svg class="pill-arrow" aria-hidden="true"><use href="#i-external"/></svg>
                   </a>
                 </div>
                 <ul class="items">
@@ -1172,6 +1309,11 @@
                     <span>Solved Questions &amp; Notes</span>
                     <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
                   </a>
+                  <a class="sub-drive-pill" href="https://drive.google.com/drive/folders/1JWLZ4A_ZH4jt143GzF7QSXRlHOlLAZR6" target="_blank" rel="noopener noreferrer" title="فتح فولدر Solved Questions &amp; Notes على Google Drive">
+                    <svg class="pill-ico" aria-hidden="true"><use href="#i-drive"/></svg>
+                    <span>فتح الفولدر</span>
+                    <svg class="pill-arrow" aria-hidden="true"><use href="#i-external"/></svg>
+                  </a>
                 </div>
                 <ul class="items">
                   <li>أسئلة امتحانات خاصة محلولة بخط اليد</li>
@@ -1184,7 +1326,7 @@
       </section>
 
       <!-- ==================== 3) OOP Java ==================== -->
-      <section class="branch" data-subject="oop java برمجة كائنية جافا هالة الحديدي هاله الحديدى كلاس كائن وراثة ديسوقي">
+      <section class="branch" data-subject="oop java برمجة كائنية جافا هالة الحديدي هاله الحديدى كلاس كائن وراثة ديسوقي lecture labs sections sheets exams">
         <div class="branch-card linked">
           <span class="num">3</span>
           <div class="branch-text">
@@ -1200,35 +1342,91 @@
         <div class="branch-body">
           <div class="stack">
             <!-- Card 1: material H.I.E -->
-            <article class="card linked" data-card="material hie معهد محاضرات سكاشن لابات شيتات تكليفات ميدترم">
+            <article class="card linked" data-card="material hie معهد محاضرات سكاشن لابات شيتات تكليفات ميدترم lecture labs sections sheets exams book">
               <div class="card-head">
                 <span class="ico" aria-hidden="true"><svg><use href="#i-folder"/></svg></span>
                 <a class="folder" href="https://drive.google.com/drive/folders/13bO7QHasyGPt26V1WB4fJf_3-gRRZL8b" target="_blank" rel="noopener noreferrer">
                   <span>material H.I.E</span>
                   <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
                 </a>
+                <a class="sub-drive-pill" href="https://drive.google.com/drive/folders/13bO7QHasyGPt26V1WB4fJf_3-gRRZL8b" target="_blank" rel="noopener noreferrer" title="فتح مجلد material H.I.E على Google Drive">
+                  <svg class="pill-ico" aria-hidden="true"><use href="#i-drive"/></svg>
+                  <span>فتح المجلد</span>
+                  <svg class="pill-arrow" aria-hidden="true"><use href="#i-external"/></svg>
+                </a>
               </div>
               <p class="desc">الماتريال كاملة: محاضرات 1-6 + سكاشن + لابات + شيتات وتكليفات</p>
               <ul class="items">
-                <li>المحاضرات كاملة: Review, Objects, Constructors, Inheritance, Polymorphism, GUI</li>
-                <li>لابات العملي + شيتات 1 إلى 4 وتكليفاتها بالحلول</li>
-                <li>ميدترم وكويزات المعهد + كتاب المرجع</li>
+                <li>
+                  <a class="item-link" href="https://drive.google.com/drive/folders/16_ugmx-nda6q-zw-EXY6dDuTuacJ0lTO" target="_blank" rel="noopener noreferrer">
+                    📁 <strong>lecture:</strong> المحاضرات 1 إلى 6 كاملة (Review, Objects, Constructors, GUI...)
+                    <svg class="inline-ext" aria-hidden="true"><use href="#i-external"/></svg>
+                  </a>
+                </li>
+                <li>
+                  <a class="item-link" href="https://drive.google.com/drive/folders/1-ffJzBP2Gs0_xXHW7xOkCyQzY3TVd7v0" target="_blank" rel="noopener noreferrer">
+                    📁 <strong>labs:</strong> لابات العملي 3 و 4
+                    <svg class="inline-ext" aria-hidden="true"><use href="#i-external"/></svg>
+                  </a>
+                  &bull;
+                  <a class="item-link" href="https://drive.google.com/drive/folders/1M1KiYf1V-prG4Xj_98uLV_cWxW5oh7ah" target="_blank" rel="noopener noreferrer">
+                    📁 <strong>sections:</strong> السكاشن
+                    <svg class="inline-ext" aria-hidden="true"><use href="#i-external"/></svg>
+                  </a>
+                </li>
+                <li>
+                  <a class="item-link" href="https://drive.google.com/drive/folders/1xnSk6agCcZ3nnJ0q-N8cH1necDFEt-LL" target="_blank" rel="noopener noreferrer">
+                    📁 <strong>sheets&amp;Assighments:</strong> شيتات 1 إلى 4 وتكليفاتها بالحلول
+                    <svg class="inline-ext" aria-hidden="true"><use href="#i-external"/></svg>
+                  </a>
+                </li>
+                <li>
+                  <a class="item-link" href="https://drive.google.com/drive/folders/1_I7m_6gy8trRPpjWO4b0Nig8hGdd-ZK1" target="_blank" rel="noopener noreferrer">
+                    📁 <strong>exams:</strong> ميدترم وكويزات المعهد
+                    <svg class="inline-ext" aria-hidden="true"><use href="#i-external"/></svg>
+                  </a>
+                  &bull;
+                  <a class="item-link" href="https://drive.google.com/drive/folders/13mJgJcbwrVxVM06NNkByyMaTZDEw9uVt" target="_blank" rel="noopener noreferrer">
+                    📁 <strong>book:</strong> كتاب المرجع
+                    <svg class="inline-ext" aria-hidden="true"><use href="#i-external"/></svg>
+                  </a>
+                </li>
               </ul>
             </article>
 
             <!-- Card 2: other Material -->
-            <article class="card linked" data-card="other material معهد دمياط فاينل ميدترم كويزات">
+            <article class="card linked" data-card="other material معهد دمياط فاينل finals ميدترم midterms كويزات quizes">
               <div class="card-head">
                 <span class="ico" aria-hidden="true"><svg><use href="#i-examcheck"/></svg></span>
                 <a class="folder" href="https://drive.google.com/drive/folders/1KtZs0T-kmfao_7h9MXSNIVPAUZ7F3pWE" target="_blank" rel="noopener noreferrer">
                   <span>other Material</span>
                   <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
                 </a>
+                <a class="sub-drive-pill" href="https://drive.google.com/drive/folders/1KtZs0T-kmfao_7h9MXSNIVPAUZ7F3pWE" target="_blank" rel="noopener noreferrer" title="فتح مجلد other Material على Google Drive">
+                  <svg class="pill-ico" aria-hidden="true"><use href="#i-drive"/></svg>
+                  <span>فتح المجلد</span>
+                  <svg class="pill-arrow" aria-hidden="true"><use href="#i-external"/></svg>
+                </a>
               </div>
               <p class="desc">بنك الامتحانات: فاينل وميدترم وكويزات</p>
               <ul class="items">
-                <li>أرشيف امتحانات الفاينل السابقة لمعهد دمياط</li>
-                <li>نماذج إجابة الميدترم والكويزات 1 حتى 4</li>
+                <li>
+                  <a class="item-link" href="https://drive.google.com/drive/folders/11bdg5s8AF-6Lu5OeWf_psHLyM8mE1r5P" target="_blank" rel="noopener noreferrer">
+                    📁 <strong>Final Exams:</strong> أرشيف امتحانات الفاينل السابقة مع الحلول
+                    <svg class="inline-ext" aria-hidden="true"><use href="#i-external"/></svg>
+                  </a>
+                </li>
+                <li>
+                  <a class="item-link" href="https://drive.google.com/drive/folders/1fnchkZk2ju544e7aDpqZzvgY0iGNZZZb" target="_blank" rel="noopener noreferrer">
+                    📁 <strong>midterms:</strong> نماذج إجابة الميدترم
+                    <svg class="inline-ext" aria-hidden="true"><use href="#i-external"/></svg>
+                  </a>
+                  &bull;
+                  <a class="item-link" href="https://drive.google.com/drive/folders/1tOwNm4UHXRwMWokCzhkGMrIfiwXD0PV-" target="_blank" rel="noopener noreferrer">
+                    📁 <strong>quizes:</strong> كويزات 1 حتى 4 بنماذج الحل
+                    <svg class="inline-ext" aria-hidden="true"><use href="#i-external"/></svg>
+                  </a>
+                </li>
               </ul>
             </article>
 
@@ -1239,6 +1437,11 @@
                 <a class="folder" href="https://drive.google.com/drive/folders/1uSTPgb9TuprJLaFqRtCxDIxK7BC1r5Op" target="_blank" rel="noopener noreferrer">
                   <span>Youtube</span>
                   <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
+                </a>
+                <a class="sub-drive-pill" href="https://drive.google.com/drive/folders/1uSTPgb9TuprJLaFqRtCxDIxK7BC1r5Op" target="_blank" rel="noopener noreferrer" title="فتح فولدر Youtube على Google Drive">
+                  <svg class="pill-ico" aria-hidden="true"><use href="#i-drive"/></svg>
+                  <span>فتح الفولدر</span>
+                  <svg class="pill-arrow" aria-hidden="true"><use href="#i-external"/></svg>
                 </a>
               </div>
               <p class="desc">ماتريال كورس Java للبشمهندس محمد الدسوقي على اليوتيوب</p>
@@ -1264,7 +1467,7 @@
       </section>
 
       <!-- ==================== 4) Electric Circuits ==================== -->
-      <section class="branch" data-subject="electric circuits تصميم الدوائر الكهربية رمضان عبد العال عبدالعال ec laplace لابلاس شيتات فاينل">
+      <section class="branch" data-subject="electric circuits تصميم الدوائر الكهربية رمضان عبد العال عبدالعال ec laplace لابلاس شيتات فاينل finals midterms">
         <div class="branch-card linked">
           <span class="num">4</span>
           <div class="branch-text">
@@ -1280,12 +1483,17 @@
         <div class="branch-body">
           <div class="stack">
             <!-- Card 1: Main Material / Organized -->
-            <article class="card linked" data-card="الماتريال كاملة electric circle design د. رمضان عبد العال مرجع كشكول مسائل laplace فاينل شيتات youtube">
+            <article class="card linked" data-card="الماتريال كاملة electric circle design د. رمضان عبد العال مرجع كشكول مسائل laplace فاينل finals ميدترم midterms شيتات youtube">
               <div class="card-head">
                 <span class="ico" aria-hidden="true"><svg><use href="#i-folder"/></svg></span>
                 <a class="folder" href="https://drive.google.com/drive/folders/1s6QOcuNwfFiKIfHYpT2-llvKvNsEdSRz" target="_blank" rel="noopener noreferrer">
                   <span>Electric Circle Design(د. رمضان عبد العال)</span>
                   <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
+                </a>
+                <a class="sub-drive-pill" href="https://drive.google.com/drive/folders/1s6QOcuNwfFiKIfHYpT2-llvKvNsEdSRz" target="_blank" rel="noopener noreferrer" title="فتح مجلد Electric Circle Design على Google Drive">
+                  <svg class="pill-ico" aria-hidden="true"><use href="#i-drive"/></svg>
+                  <span>فتح المجلد</span>
+                  <svg class="pill-arrow" aria-hidden="true"><use href="#i-external"/></svg>
                 </a>
               </div>
               <p class="desc">مرجع <span class="ltr">EC</span> + حل امتحان الفاينل السابق + مسائل <span class="ltr">Laplace</span> هامة</p>
@@ -1297,6 +1505,11 @@
                   <a class="folder" href="https://drive.google.com/drive/folders/16IIH4amu633mV6lHNLNFiixv8TrGPfLu" target="_blank" rel="noopener noreferrer">
                     <span>Lectures &amp; Revision</span>
                     <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
+                  </a>
+                  <a class="sub-drive-pill" href="https://drive.google.com/drive/folders/16IIH4amu633mV6lHNLNFiixv8TrGPfLu" target="_blank" rel="noopener noreferrer" title="فتح فولدر Lectures &amp; Revision على Google Drive">
+                    <svg class="pill-ico" aria-hidden="true"><use href="#i-drive"/></svg>
+                    <span>فتح الفولدر</span>
+                    <svg class="pill-arrow" aria-hidden="true"><use href="#i-external"/></svg>
                   </a>
                 </div>
                 <ul class="items">
@@ -1314,6 +1527,11 @@
                     <span>Sheets</span>
                     <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
                   </a>
+                  <a class="sub-drive-pill" href="https://drive.google.com/drive/folders/1l74TmM8vav-BsMeFmG-G-gm7eUJpRvVy" target="_blank" rel="noopener noreferrer" title="فتح فولدر Sheets على Google Drive">
+                    <svg class="pill-ico" aria-hidden="true"><use href="#i-drive"/></svg>
+                    <span>فتح الفولدر</span>
+                    <svg class="pill-arrow" aria-hidden="true"><use href="#i-external"/></svg>
+                  </a>
                 </div>
                 <ul class="items">
                   <li>شيتات 1 إلى 4 كاملة بنماذج الحل</li>
@@ -1328,9 +1546,25 @@
                     <span>Exams</span>
                     <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
                   </a>
+                  <a class="sub-drive-pill" href="https://drive.google.com/drive/folders/1LIXvVHZ5F0_QFWftcqRgaBaNtAsFXm23" target="_blank" rel="noopener noreferrer" title="فتح فولدر الامتحانات على Google Drive">
+                    <svg class="pill-ico" aria-hidden="true"><use href="#i-drive"/></svg>
+                    <span>فتح فولدر الامتحانات</span>
+                    <svg class="pill-arrow" aria-hidden="true"><use href="#i-external"/></svg>
+                  </a>
                 </div>
                 <ul class="items">
-                  <li>أسئلة وحل فاينل 2024-2025 (14 صفحة) + الميدترم</li>
+                  <li>
+                    <a class="item-link" href="https://drive.google.com/drive/folders/1_Wi30o3KZCbhuc2O_8oRQQSSmSNq5yCf" target="_blank" rel="noopener noreferrer">
+                      📁 <strong>Finals:</strong> أسئلة وحل فاينل 2024-2025 (14 صفحة)
+                      <svg class="inline-ext" aria-hidden="true"><use href="#i-external"/></svg>
+                    </a>
+                  </li>
+                  <li>
+                    <a class="item-link" href="https://drive.google.com/drive/folders/1tiLDfAyAUPVnszkxVw7B_rFKI08E1Mlz" target="_blank" rel="noopener noreferrer">
+                      📁 <strong>Midterms:</strong> نموذج حل امتحان الميدترم
+                      <svg class="inline-ext" aria-hidden="true"><use href="#i-external"/></svg>
+                    </a>
+                  </li>
                 </ul>
               </div>
 
@@ -1341,6 +1575,11 @@
                   <a class="folder" href="https://drive.google.com/drive/folders/1dRORKjuodtVupbHBbJWyjTJ7gODwW8el" target="_blank" rel="noopener noreferrer">
                     <span>Youtube</span>
                     <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
+                  </a>
+                  <a class="sub-drive-pill" href="https://drive.google.com/drive/folders/1dRORKjuodtVupbHBbJWyjTJ7gODwW8el" target="_blank" rel="noopener noreferrer" title="فتح فولدر Youtube على Google Drive">
+                    <svg class="pill-ico" aria-hidden="true"><use href="#i-drive"/></svg>
+                    <span>فتح الفولدر</span>
+                    <svg class="pill-arrow" aria-hidden="true"><use href="#i-external"/></svg>
                   </a>
                 </div>
                 <ul class="items">
@@ -1369,19 +1608,24 @@
         <div class="branch-body">
           <div class="stack">
             <!-- Card 1: Math 5 Material -->
-            <article class="card linked" data-card="math 5 الماتريال كاملة مذكرة فاينل مسائل محلولة">
+            <article class="card linked" data-card="math 5 الماتريال كاملة د. حموده ابو الدهب مذكرة فاينل مسائل محلولة">
               <div class="card-head">
                 <span class="ico" aria-hidden="true"><svg><use href="#i-folder"/></svg></span>
                 <a class="folder" href="https://drive.google.com/drive/folders/12Pq4iel8ZXYSNp_5lTGY9YOoKPx-QMM6" target="_blank" rel="noopener noreferrer">
-                  <span>الماتريال كاملة</span>
+                  <span>Math 5 (د. حموده ابو الدهب)</span>
                   <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
+                </a>
+                <a class="sub-drive-pill" href="https://drive.google.com/drive/folders/12Pq4iel8ZXYSNp_5lTGY9YOoKPx-QMM6" target="_blank" rel="noopener noreferrer" title="فتح مجلد Math 5 على Google Drive">
+                  <svg class="pill-ico" aria-hidden="true"><use href="#i-drive"/></svg>
+                  <span>فتح المجلد</span>
+                  <svg class="pill-arrow" aria-hidden="true"><use href="#i-external"/></svg>
                 </a>
               </div>
               <p class="desc">مذكرة <span class="ltr">Math 5</span> الشاملة + حلول امتحانات الفاينل السابقة</p>
               <ul class="items">
-                <li>مذكرة المنهج الشاملة لمقرر Math 5 (16 MB)</li>
+                <li>المذكرة الشاملة للمنهج كامل (16 MB)</li>
                 <li>حل امتحان الفاينل السابق كاملاً</li>
-                <li>حلول وتدريبات باقي أسئلة الامتحانات</li>
+                <li>حلول باقي أسئلة الامتحانات المهمة</li>
               </ul>
             </article>
           </div>
@@ -1412,6 +1656,11 @@
                   <span>انسانيات (د.محمد اسماعيل)</span>
                   <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
                 </a>
+                <a class="sub-drive-pill" href="https://drive.google.com/drive/folders/1m-ycL4YUAeZVb4uKraSlHHEadHiHmp8o" target="_blank" rel="noopener noreferrer" title="فتح مجلد انسانيات (د.محمد اسماعيل) على Google Drive">
+                  <svg class="pill-ico" aria-hidden="true"><use href="#i-drive"/></svg>
+                  <span>فتح المجلد</span>
+                  <svg class="pill-arrow" aria-hidden="true"><use href="#i-external"/></svg>
+                </a>
               </div>
               <p class="desc">المجلد المعتمد الشامل لمقرر الإنسانيات وحقوق الإنسان — د. محمد إسماعيل</p>
 
@@ -1422,6 +1671,11 @@
                   <a class="folder" href="https://drive.google.com/drive/folders/1-6L4lJpB2-s4Sde2RhIPjnZCE59uAfiG" target="_blank" rel="noopener noreferrer">
                     <span>presentation Human Rights</span>
                     <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
+                  </a>
+                  <a class="sub-drive-pill" href="https://drive.google.com/drive/folders/1-6L4lJpB2-s4Sde2RhIPjnZCE59uAfiG" target="_blank" rel="noopener noreferrer" title="فتح فولدر عروض البريزنتيشن التسعة على Google Drive">
+                    <svg class="pill-ico" aria-hidden="true"><use href="#i-drive"/></svg>
+                    <span>فتح عروض البريزنتيشن</span>
+                    <svg class="pill-arrow" aria-hidden="true"><use href="#i-external"/></svg>
                   </a>
                 </div>
                 <p class="desc">عروض البريزنتيشن الـ 9 كاملة بصيغة <span class="ltr">PDF</span></p>
