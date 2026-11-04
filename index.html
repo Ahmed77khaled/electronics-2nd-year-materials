@@ -1054,11 +1054,26 @@
     padding-inline-start: 0;
     display: flex;
     align-items: center;
-    gap: 10px;
+    justify-content: space-between;
+    gap: 12px;
     flex-wrap: wrap;
     font-size: 13.5px;
     line-height: 1.6;
     color: var(--ink);
+  }
+
+  .items.folder-list li .chip-desc {
+    order: 1;
+    color: var(--ink);
+    font-size: 13.5px;
+    line-height: 1.6;
+    flex: 1 1 auto;
+    text-align: right;
+  }
+
+  .items.folder-list li .folder-chip {
+    order: 2;
+    margin-inline-start: auto;
   }
 
   .items.folder-list li::before {
@@ -1449,147 +1464,164 @@
 
         <div class="branch-body">
           <div class="stack">
-            <!-- Card 1: material H.I.E -->
-            <article class="card linked" data-card="material hie معهد محاضرات سكاشن لابات شيتات تكليفات ميدترم lecture labs sections sheets exams book">
+            <!-- Main Card: Oop java(د.هالة الحديدى) -->
+            <article class="card linked" data-card="oop java د. هالة الحديدي الماتريال كاملة معهد دمياط محاضرات سكاشن لابات شيتات تكليفات امتحانات فاينل ميدترم كويزات يوتيوب ديسوقي">
               <div class="card-head">
                 <span class="ico" aria-hidden="true"><svg><use href="#i-folder"/></svg></span>
-                <a class="folder" href="https://drive.google.com/drive/folders/13bO7QHasyGPt26V1WB4fJf_3-gRRZL8b" target="_blank" rel="noopener noreferrer">
-                  <span>material H.I.E</span>
+                <a class="folder" href="https://drive.google.com/drive/folders/18XdbYvfPOlFSEd6BXrlJ3Wau2x32VCtd" target="_blank" rel="noopener noreferrer">
+                  <span>Oop java(د.هالة الحديدى)</span>
                   <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
                 </a>
-                <a class="sub-drive-pill" href="https://drive.google.com/drive/folders/13bO7QHasyGPt26V1WB4fJf_3-gRRZL8b" target="_blank" rel="noopener noreferrer" title="فتح مجلد material H.I.E على Google Drive">
+                <a class="sub-drive-pill" href="https://drive.google.com/drive/folders/18XdbYvfPOlFSEd6BXrlJ3Wau2x32VCtd" target="_blank" rel="noopener noreferrer" title="فتح مجلد Oop java(د.هالة الحديدى) على Google Drive">
                   <svg class="pill-ico" aria-hidden="true"><use href="#i-drive"/></svg>
                   <span>فتح المجلد</span>
                   <svg class="pill-arrow" aria-hidden="true"><use href="#i-external"/></svg>
                 </a>
               </div>
-              <p class="desc">الماتريال كاملة: محاضرات 1-6 + سكاشن + لابات + شيتات وتكليفات</p>
-              <ul class="items folder-list">
-                <li>
-                  <a class="folder-chip" href="https://drive.google.com/drive/folders/16_ugmx-nda6q-zw-EXY6dDuTuacJ0lTO" target="_blank" rel="noopener noreferrer" title="فتح مجلد lecture">
-                    <svg class="chip-folder-ico" aria-hidden="true"><use href="#i-folder"/></svg>
-                    <bdi dir="ltr">lecture</bdi>
-                    <svg class="chip-ext" aria-hidden="true"><use href="#i-external"/></svg>
-                  </a>
-                  <span class="chip-desc">المحاضرات من 1 إلى 6 كاملة (Review, Objects, Constructors, GUI...)</span>
-                </li>
-                <li>
-                  <a class="folder-chip" href="https://drive.google.com/drive/folders/1M1KiYf1V-prG4Xj_98uLV_cWxW5oh7ah" target="_blank" rel="noopener noreferrer" title="فتح مجلد sections">
-                    <svg class="chip-folder-ico" aria-hidden="true"><use href="#i-folder"/></svg>
-                    <bdi dir="ltr">sections</bdi>
-                    <svg class="chip-ext" aria-hidden="true"><use href="#i-external"/></svg>
-                  </a>
-                  <span class="chip-desc">سكاشن المادة الشاملة</span>
-                </li>
-                <li>
-                  <a class="folder-chip" href="https://drive.google.com/drive/folders/1-ffJzBP2Gs0_xXHW7xOkCyQzY3TVd7v0" target="_blank" rel="noopener noreferrer" title="فتح مجلد labs">
-                    <svg class="chip-folder-ico" aria-hidden="true"><use href="#i-folder"/></svg>
-                    <bdi dir="ltr">labs</bdi>
-                    <svg class="chip-ext" aria-hidden="true"><use href="#i-external"/></svg>
-                  </a>
-                  <span class="chip-desc">لابات البرمجة العملية 3 و 4</span>
-                </li>
-                <li>
-                  <a class="folder-chip" href="https://drive.google.com/drive/folders/1xnSk6agCcZ3nnJ0q-N8cH1necDFEt-LL" target="_blank" rel="noopener noreferrer" title="فتح مجلد sheets&amp;Assighments">
-                    <svg class="chip-folder-ico" aria-hidden="true"><use href="#i-folder"/></svg>
-                    <bdi dir="ltr">sheets&amp;Assighments</bdi>
-                    <svg class="chip-ext" aria-hidden="true"><use href="#i-external"/></svg>
-                  </a>
-                  <span class="chip-desc">شيتات 1 إلى 4 وتكليفاتها بالحلول</span>
-                </li>
-                <li>
-                  <a class="folder-chip" href="https://drive.google.com/drive/folders/1_I7m_6gy8trRPpjWO4b0Nig8hGdd-ZK1" target="_blank" rel="noopener noreferrer" title="فتح مجلد exams">
-                    <svg class="chip-folder-ico" aria-hidden="true"><use href="#i-folder"/></svg>
-                    <bdi dir="ltr">exams</bdi>
-                    <svg class="chip-ext" aria-hidden="true"><use href="#i-external"/></svg>
-                  </a>
-                  <span class="chip-desc">ميدترم وكويزات المعهد بالحلول</span>
-                </li>
-                <li>
-                  <a class="folder-chip" href="https://drive.google.com/drive/folders/13mJgJcbwrVxVM06NNkByyMaTZDEw9uVt" target="_blank" rel="noopener noreferrer" title="فتح مجلد book">
-                    <svg class="chip-folder-ico" aria-hidden="true"><use href="#i-folder"/></svg>
-                    <bdi dir="ltr">book</bdi>
-                    <svg class="chip-ext" aria-hidden="true"><use href="#i-external"/></svg>
-                  </a>
-                  <span class="chip-desc">كتاب المرجع المعتمد للجافا</span>
-                </li>
-              </ul>
-            </article>
+              <p class="desc">المجلد المعتمد الشامل لمقرر البرمجة كائنية التوجه — د. هالة الحديدي</p>
 
-            <!-- Card 2: other Material -->
-            <article class="card linked" data-card="other material معهد دمياط فاينل finals ميدترم midterms كويزات quizes">
-              <div class="card-head">
-                <span class="ico" aria-hidden="true"><svg><use href="#i-examcheck"/></svg></span>
-                <a class="folder" href="https://drive.google.com/drive/folders/1KtZs0T-kmfao_7h9MXSNIVPAUZ7F3pWE" target="_blank" rel="noopener noreferrer">
-                  <span>other Material</span>
+              <!-- Sub-folder 1: material H.I.E -->
+              <div class="sub linked">
+                <div class="card-head">
+                  <span class="ico" aria-hidden="true"><svg><use href="#i-folder"/></svg></span>
+                  <a class="folder" href="https://drive.google.com/drive/folders/13bO7QHasyGPt26V1WB4fJf_3-gRRZL8b" target="_blank" rel="noopener noreferrer">
+                    <span>material H.I.E</span>
+                    <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
+                  </a>
+                  <a class="sub-drive-pill" href="https://drive.google.com/drive/folders/13bO7QHasyGPt26V1WB4fJf_3-gRRZL8b" target="_blank" rel="noopener noreferrer" title="فتح فولدر material H.I.E على Google Drive">
+                    <svg class="pill-ico" aria-hidden="true"><use href="#i-drive"/></svg>
+                    <span>فتح الفولدر</span>
+                    <svg class="pill-arrow" aria-hidden="true"><use href="#i-external"/></svg>
+                  </a>
+                </div>
+                <p class="desc">الماتريال كاملة: محاضرات 1-6 + سكاشن + لابات + شيتات وتكليفات</p>
+                <ul class="items folder-list">
+                  <li>
+                    <a class="folder-chip" href="https://drive.google.com/drive/folders/16_ugmx-nda6q-zw-EXY6dDuTuacJ0lTO" target="_blank" rel="noopener noreferrer" title="فتح مجلد lecture">
+                      <svg class="chip-folder-ico" aria-hidden="true"><use href="#i-folder"/></svg>
+                      <bdi dir="ltr">lecture</bdi>
+                      <svg class="chip-ext" aria-hidden="true"><use href="#i-external"/></svg>
+                    </a>
+                    <span class="chip-desc">المحاضرات من 1 إلى 6 كاملة (Review, Objects, Constructors, GUI...)</span>
+                  </li>
+                  <li>
+                    <a class="folder-chip" href="https://drive.google.com/drive/folders/1M1KiYf1V-prG4Xj_98uLV_cWxW5oh7ah" target="_blank" rel="noopener noreferrer" title="فتح مجلد sections">
+                      <svg class="chip-folder-ico" aria-hidden="true"><use href="#i-folder"/></svg>
+                      <bdi dir="ltr">sections</bdi>
+                      <svg class="chip-ext" aria-hidden="true"><use href="#i-external"/></svg>
+                    </a>
+                    <span class="chip-desc">سكاشن المادة الشاملة</span>
+                  </li>
+                  <li>
+                    <a class="folder-chip" href="https://drive.google.com/drive/folders/1-ffJzBP2Gs0_xXHW7xOkCyQzY3TVd7v0" target="_blank" rel="noopener noreferrer" title="فتح مجلد labs">
+                      <svg class="chip-folder-ico" aria-hidden="true"><use href="#i-folder"/></svg>
+                      <bdi dir="ltr">labs</bdi>
+                      <svg class="chip-ext" aria-hidden="true"><use href="#i-external"/></svg>
+                    </a>
+                    <span class="chip-desc">لابات البرمجة العملية 3 و 4</span>
+                  </li>
+                  <li>
+                    <a class="folder-chip" href="https://drive.google.com/drive/folders/1xnSk6agCcZ3nnJ0q-N8cH1necDFEt-LL" target="_blank" rel="noopener noreferrer" title="فتح مجلد sheets&amp;Assighments">
+                      <svg class="chip-folder-ico" aria-hidden="true"><use href="#i-folder"/></svg>
+                      <bdi dir="ltr">sheets&amp;Assighments</bdi>
+                      <svg class="chip-ext" aria-hidden="true"><use href="#i-external"/></svg>
+                    </a>
+                    <span class="chip-desc">شيتات 1 إلى 4 وتكليفاتها بالحلول</span>
+                  </li>
+                  <li>
+                    <a class="folder-chip" href="https://drive.google.com/drive/folders/1_I7m_6gy8trRPpjWO4b0Nig8hGdd-ZK1" target="_blank" rel="noopener noreferrer" title="فتح مجلد exams">
+                      <svg class="chip-folder-ico" aria-hidden="true"><use href="#i-folder"/></svg>
+                      <bdi dir="ltr">exams</bdi>
+                      <svg class="chip-ext" aria-hidden="true"><use href="#i-external"/></svg>
+                    </a>
+                    <span class="chip-desc">ميدترم وكويزات المعهد بالحلول</span>
+                  </li>
+                  <li>
+                    <a class="folder-chip" href="https://drive.google.com/drive/folders/13mJgJcbwrVxVM06NNkByyMaTZDEw9uVt" target="_blank" rel="noopener noreferrer" title="فتح مجلد book">
+                      <svg class="chip-folder-ico" aria-hidden="true"><use href="#i-folder"/></svg>
+                      <bdi dir="ltr">book</bdi>
+                      <svg class="chip-ext" aria-hidden="true"><use href="#i-external"/></svg>
+                    </a>
+                    <span class="chip-desc">كتاب المرجع المعتمد للجافا</span>
+                  </li>
+                </ul>
+              </div>
+
+              <!-- Sub-folder 2: other Material -->
+              <div class="sub linked">
+                <div class="card-head">
+                  <span class="ico" aria-hidden="true"><svg><use href="#i-examcheck"/></svg></span>
+                  <a class="folder" href="https://drive.google.com/drive/folders/1KtZs0T-kmfao_7h9MXSNIVPAUZ7F3pWE" target="_blank" rel="noopener noreferrer">
+                    <span>other Material</span>
+                    <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
+                  </a>
+                  <a class="sub-drive-pill" href="https://drive.google.com/drive/folders/1KtZs0T-kmfao_7h9MXSNIVPAUZ7F3pWE" target="_blank" rel="noopener noreferrer" title="فتح فولدر other Material على Google Drive">
+                    <svg class="pill-ico" aria-hidden="true"><use href="#i-drive"/></svg>
+                    <span>فتح الفولدر</span>
+                    <svg class="pill-arrow" aria-hidden="true"><use href="#i-external"/></svg>
+                  </a>
+                </div>
+                <p class="desc">بنك الامتحانات: فاينل وميدترم وكويزات — معهد دمياط</p>
+                <ul class="items folder-list">
+                  <li>
+                    <a class="folder-chip" href="https://drive.google.com/drive/folders/11bdg5s8AF-6Lu5OeWf_psHLyM8mE1r5P" target="_blank" rel="noopener noreferrer" title="فتح مجلد Final Exams">
+                      <svg class="chip-folder-ico" aria-hidden="true"><use href="#i-folder"/></svg>
+                      <bdi dir="ltr">Final Exams</bdi>
+                      <svg class="chip-ext" aria-hidden="true"><use href="#i-external"/></svg>
+                    </a>
+                    <span class="chip-desc">أرشيف امتحانات الفاينل السابقة مع الحلول</span>
+                  </li>
+                  <li>
+                    <a class="folder-chip" href="https://drive.google.com/drive/folders/1fnchkZk2ju544e7aDpqZzvgY0iGNZZZb" target="_blank" rel="noopener noreferrer" title="فتح مجلد midterms">
+                      <svg class="chip-folder-ico" aria-hidden="true"><use href="#i-folder"/></svg>
+                      <bdi dir="ltr">midterms</bdi>
+                      <svg class="chip-ext" aria-hidden="true"><use href="#i-external"/></svg>
+                    </a>
+                    <span class="chip-desc">نماذج إجابة امتحانات الميدترم</span>
+                  </li>
+                  <li>
+                    <a class="folder-chip" href="https://drive.google.com/drive/folders/1tOwNm4UHXRwMWokCzhkGMrIfiwXD0PV-" target="_blank" rel="noopener noreferrer" title="فتح مجلد quizes">
+                      <svg class="chip-folder-ico" aria-hidden="true"><use href="#i-folder"/></svg>
+                      <bdi dir="ltr">quizes</bdi>
+                      <svg class="chip-ext" aria-hidden="true"><use href="#i-external"/></svg>
+                    </a>
+                    <span class="chip-desc">كويزات 1 حتى 4 بنماذج الحل</span>
+                  </li>
+                </ul>
+              </div>
+
+              <!-- Sub-folder 3: Youtube -->
+              <div class="sub linked">
+                <div class="card-head">
+                  <span class="ico ico-yt" aria-hidden="true"><svg><use href="#i-youtube"/></svg></span>
+                  <a class="folder" href="https://drive.google.com/drive/folders/1uSTPgb9TuprJLaFqRtCxDIxK7BC1r5Op" target="_blank" rel="noopener noreferrer">
+                    <span>Youtube</span>
+                    <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
+                  </a>
+                  <a class="sub-drive-pill" href="https://drive.google.com/drive/folders/1uSTPgb9TuprJLaFqRtCxDIxK7BC1r5Op" target="_blank" rel="noopener noreferrer" title="فتح فولدر Youtube على Google Drive">
+                    <svg class="pill-ico" aria-hidden="true"><use href="#i-drive"/></svg>
+                    <span>فتح الفولدر</span>
+                    <svg class="pill-arrow" aria-hidden="true"><use href="#i-external"/></svg>
+                  </a>
+                </div>
+                <p class="desc">ماتريال كورس Java للبشمهندس محمد الدسوقي على اليوتيوب</p>
+                
+                <a class="playlist" href="https://youtube.com/playlist?list=PL1DUmTEdeA6K7rdxKiWJq6JIxTvHalY8f&amp;si=z8nmHaUdaqSRIdve" target="_blank" rel="noopener noreferrer">
+                  <span class="playlist-text">
+                    <svg class="yt-ico" aria-hidden="true"><use href="#i-youtube"/></svg>
+                    <span>▶ جزء الأساسيات — مراجعة أساسيات Java قبل OOP</span>
+                  </span>
                   <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
                 </a>
-                <a class="sub-drive-pill" href="https://drive.google.com/drive/folders/1KtZs0T-kmfao_7h9MXSNIVPAUZ7F3pWE" target="_blank" rel="noopener noreferrer" title="فتح مجلد other Material على Google Drive">
-                  <svg class="pill-ico" aria-hidden="true"><use href="#i-drive"/></svg>
-                  <span>فتح المجلد</span>
-                  <svg class="pill-arrow" aria-hidden="true"><use href="#i-external"/></svg>
-                </a>
-              </div>
-              <p class="desc">بنك الامتحانات: فاينل وميدترم وكويزات</p>
-              <ul class="items folder-list">
-                <li>
-                  <a class="folder-chip" href="https://drive.google.com/drive/folders/11bdg5s8AF-6Lu5OeWf_psHLyM8mE1r5P" target="_blank" rel="noopener noreferrer" title="فتح مجلد Final Exams">
-                    <svg class="chip-folder-ico" aria-hidden="true"><use href="#i-folder"/></svg>
-                    <bdi dir="ltr">Final Exams</bdi>
-                    <svg class="chip-ext" aria-hidden="true"><use href="#i-external"/></svg>
-                  </a>
-                  <span class="chip-desc">أرشيف امتحانات الفاينل السابقة مع الحلول</span>
-                </li>
-                <li>
-                  <a class="folder-chip" href="https://drive.google.com/drive/folders/1fnchkZk2ju544e7aDpqZzvgY0iGNZZZb" target="_blank" rel="noopener noreferrer" title="فتح مجلد midterms">
-                    <svg class="chip-folder-ico" aria-hidden="true"><use href="#i-folder"/></svg>
-                    <bdi dir="ltr">midterms</bdi>
-                    <svg class="chip-ext" aria-hidden="true"><use href="#i-external"/></svg>
-                  </a>
-                  <span class="chip-desc">نماذج إجابة امتحانات الميدترم</span>
-                </li>
-                <li>
-                  <a class="folder-chip" href="https://drive.google.com/drive/folders/1tOwNm4UHXRwMWokCzhkGMrIfiwXD0PV-" target="_blank" rel="noopener noreferrer" title="فتح مجلد quizes">
-                    <svg class="chip-folder-ico" aria-hidden="true"><use href="#i-folder"/></svg>
-                    <bdi dir="ltr">quizes</bdi>
-                    <svg class="chip-ext" aria-hidden="true"><use href="#i-external"/></svg>
-                  </a>
-                  <span class="chip-desc">كويزات 1 حتى 4 بنماذج الحل</span>
-                </li>
-              </ul>
-            </article>
 
-            <!-- Card 3: Youtube -->
-            <article class="card linked" data-card="youtube كورس يوتيوب محمد الدسوقي اساسيات oop">
-              <div class="card-head">
-                <span class="ico ico-yt" aria-hidden="true"><svg><use href="#i-youtube"/></svg></span>
-                <a class="folder" href="https://drive.google.com/drive/folders/1uSTPgb9TuprJLaFqRtCxDIxK7BC1r5Op" target="_blank" rel="noopener noreferrer">
-                  <span>Youtube</span>
+                <a class="playlist" href="https://youtube.com/playlist?list=PL1DUmTEdeA6Icttz-O9C3RPRF8R8Px5vk&amp;si=-4a3rKLdl8YQXjPE" target="_blank" rel="noopener noreferrer">
+                  <span class="playlist-text">
+                    <svg class="yt-ico" aria-hidden="true"><use href="#i-youtube"/></svg>
+                    <span>▶ جزء الـ OOP — شرح مفاهيم OOP بالتدريج</span>
+                  </span>
                   <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
                 </a>
-                <a class="sub-drive-pill" href="https://drive.google.com/drive/folders/1uSTPgb9TuprJLaFqRtCxDIxK7BC1r5Op" target="_blank" rel="noopener noreferrer" title="فتح فولدر Youtube على Google Drive">
-                  <svg class="pill-ico" aria-hidden="true"><use href="#i-drive"/></svg>
-                  <span>فتح الفولدر</span>
-                  <svg class="pill-arrow" aria-hidden="true"><use href="#i-external"/></svg>
-                </a>
               </div>
-              <p class="desc">ماتريال كورس Java للبشمهندس محمد الدسوقي على اليوتيوب</p>
-              
-              <a class="playlist" href="https://youtube.com/playlist?list=PL1DUmTEdeA6K7rdxKiWJq6JIxTvHalY8f&amp;si=z8nmHaUdaqSRIdve" target="_blank" rel="noopener noreferrer">
-                <span class="playlist-text">
-                  <svg class="yt-ico" aria-hidden="true"><use href="#i-youtube"/></svg>
-                  <span>▶ جزء الأساسيات — مراجعة أساسيات Java قبل OOP</span>
-                </span>
-                <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
-              </a>
-
-              <a class="playlist" href="https://youtube.com/playlist?list=PL1DUmTEdeA6Icttz-O9C3RPRF8R8Px5vk&amp;si=-4a3rKLdl8YQXjPE" target="_blank" rel="noopener noreferrer">
-                <span class="playlist-text">
-                  <svg class="yt-ico" aria-hidden="true"><use href="#i-youtube"/></svg>
-                  <span>▶ جزء الـ OOP — شرح مفاهيم OOP بالتدريج</span>
-                </span>
-                <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
-              </a>
             </article>
           </div>
         </div>
