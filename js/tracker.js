@@ -4,6 +4,7 @@
  * 
  * Features:
  * - Robust Event Tracking: course_click, folder_link_clicked, resource_click, youtube_click, search_used, filter_changed
+ * - Strict Schema & Allowlist: Conforms to 002_secure_tracking_rpcs.sql (no sensitive data or arbitrary keys)
  * - Deduplication: Prevents double-counting from multiple clicks or duplicate listeners
  * - Safe Identity: Never fakes student identities (user_id is null for unauthenticated guests)
  * - Non-blocking: External links open normally without interference
@@ -18,9 +19,9 @@
   }
   root.__PORTAL_TRACKER_INITIALIZED__ = true;
 
-  // Session Management (UUID v4 in sessionStorage)
-  function getOrCreateSessionId() {
-    var key = 'portal_telemetry_session_id';
+  // Ephemeral Client Session Token
+  function getOrCreateClientSessionId() {
+    var key = 'portal_telemetry_client_session_id';
     var sid = null;
     try {
       sid = sessionStorage.getItem(key);
@@ -37,7 +38,7 @@
     return sid;
   }
 
-  var sessionId = getOrCreateSessionId();
+  var clientSessionId = getOrCreateClientSessionId();
   var recentClicks = {}; // Debounce click cache: { resourceId: timestamp }
   var lastSearchQuery = '';
   var searchTimer = null;
@@ -54,9 +55,6 @@
     'ROOT_DRIVE_TERM1': 'general-term-1'
   };
 
-  /**
-   * Resolve resource metadata using ResourceRegistry if available
-   */
   function resolveResource(resourceId) {
     if (root.ResourceRegistry && typeof root.ResourceRegistry.getResourceById === 'function') {
       return root.ResourceRegistry.getResourceById(resourceId);
@@ -64,9 +62,6 @@
     return null;
   }
 
-  /**
-   * Determine course slug from resource ID
-   */
   function resolveCourseSlug(resourceId, resData) {
     if (resData && resData.subject) {
       return SUBJECT_TO_COURSE[resData.subject] || resData.subject;
@@ -77,6 +72,13 @@
       }
     }
     return 'general-term-1';
+  }
+
+  function mapDbResourceType(resType, href) {
+    if (resType === 'playlist' || (href && href.indexOf('youtube.com') !== -1)) return 'youtube';
+    if (['root', 'subject', 'card', 'subfolder'].indexOf(resType) !== -1) return 'folder';
+    if (resType === 'chip') return 'drive';
+    return 'drive';
   }
 
   /**
@@ -98,7 +100,7 @@
     var fullPayload = {
       event_name: eventName,
       user_id: userId,
-      session_id: sessionId,
+      session_id: clientSessionId,
       course_id: payload.course_id || null,
       resource_id: payload.resource_id || null,
       page_path: window.location.pathname || '/',
@@ -111,12 +113,12 @@
       console.log('[Telemetry Dispatched]', fullPayload);
     }
 
-    // Always dispatch local DOM event for unit testing & decoupled integrations
+    // Local DOM event for testing and decoupled analytics
     window.dispatchEvent(new CustomEvent('analytics:telemetry_event', { detail: fullPayload }));
 
-    // Send to Supabase only if user is logged in and SupabaseBridge is ready
-    if (userId && root.SupabaseBridge && typeof root.SupabaseBridge.insertActivityEvent === 'function') {
-      root.SupabaseBridge.insertActivityEvent(fullPayload).catch(function(err) {
+    // Send to Supabase via secure RPC if user is authenticated and bridge is ready
+    if (userId && root.SupabaseBridge && typeof root.SupabaseBridge.trackPortalEvent === 'function') {
+      root.SupabaseBridge.trackPortalEvent(fullPayload).catch(function(err) {
         if (debugMode) console.warn('[Telemetry Sync Warning]', err);
       });
     }
@@ -124,7 +126,6 @@
 
   /**
    * 1. Click Listener (Delegated on document)
-   * Tracks: course_click, folder_link_clicked, resource_click, youtube_click
    */
   function setupClickListener() {
     document.addEventListener('click', function(e) {
@@ -149,33 +150,35 @@
 
       // Classify Event Name
       var eventName = 'resource_click';
-      if (resourceType === 'subject' || resourceId.endsWith('_EMF') || resourceId.endsWith('_LOGIC') || resourceId.endsWith('_OOP_JAVA') || resourceId.endsWith('_CIRCUITS') || resourceId.endsWith('_MATH5') || resourceId.endsWith('_HUMANITIES')) {
+      var sourceTag = 'resource_chip';
+      if (resourceType === 'subject' || resourceId.indexOf('SUB_') === 0 && resourceId.indexOf('_MAIN') === -1 && resourceId.indexOf('_MAT') === -1) {
         eventName = 'course_click';
+        sourceTag = 'course_header';
       } else if (resourceType === 'playlist' || (href && href.indexOf('youtube.com') !== -1)) {
         eventName = 'youtube_click';
+        sourceTag = 'youtube_link';
       } else if (resourceType === 'card' || resourceType === 'subfolder' || resourceType === 'root' || (target.classList && (target.classList.contains('folder') || target.classList.contains('sub-drive-pill') || target.classList.contains('main-drive-btn')))) {
         eventName = 'folder_link_clicked';
+        sourceTag = 'folder_link';
       }
 
+      // Allowed properties per 002_secure_tracking_rpcs.sql:
+      // 'resource_type', 'filter_name', 'result_count', 'search_length', 'source'
       var payload = {
         course_id: courseSlug,
         resource_id: resourceId,
         properties: {
-          resource_key: resourceId,
-          resource_type: resourceType,
-          title: (resData && (resData.title || resData.name)) || target.innerText.trim().slice(0, 80),
-          url: href,
-          target_blank: target.getAttribute('target') === '_blank'
+          resource_type: mapDbResourceType(resourceType, href),
+          source: sourceTag
         }
       };
 
       dispatchEvent(eventName, payload);
-    }, true); // Use capturing to ensure event triggers even if link navigates
+    }, true);
   }
 
   /**
    * 2. Search Listener (Debounced 1500ms)
-   * Tracks: search_used
    */
   function setupSearchListener() {
     var searchInput = document.getElementById('directory-search');
@@ -191,12 +194,14 @@
       searchTimer = setTimeout(function() {
         if (query.length >= 2 && query !== lastSearchQuery) {
           lastSearchQuery = query;
+          // Per 002_secure_tracking_rpcs.sql: Raw search query text is deliberately NOT stored for privacy.
+          // Only search_length and source are transmitted.
           dispatchEvent('search_used', {
             course_id: null,
             resource_id: null,
             properties: {
-              search_term: query,
-              query_length: query.length
+              search_length: query.length,
+              source: 'search_bar'
             }
           });
         }
@@ -206,7 +211,6 @@
 
   /**
    * 3. Filter Category Listener
-   * Tracks: filter_changed
    */
   function setupFilterListener() {
     var filterContainer = document.querySelector('.search-filters');
@@ -223,15 +227,14 @@
           course_id: null,
           resource_id: null,
           properties: {
-            selected_category: selectedCategory,
-            tag_label: tag.innerText.trim()
+            filter_name: selectedCategory,
+            source: 'quick_filter'
           }
         });
       }
     });
   }
 
-  // Initialize all listeners when DOM is loaded
   function initListeners() {
     setupClickListener();
     setupSearchListener();
@@ -244,10 +247,9 @@
     initListeners();
   }
 
-  // Expose Tracker helpers for manual tests or external dispatch
   root.PortalTracker = {
     dispatchEvent: dispatchEvent,
-    getSessionId: function() { return sessionId; },
+    getClientSessionId: function() { return clientSessionId; },
     getRecentClicks: function() { return recentClicks; }
   };
 

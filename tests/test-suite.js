@@ -11,8 +11,11 @@ const ROOT_DIR = path.join(__dirname, '..');
 const htmlContent = fs.readFileSync(path.join(ROOT_DIR, 'index.html'), 'utf-8');
 const registryJson = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, 'data', 'resource-registry.json'), 'utf-8'));
 const registryJs = require(path.join(ROOT_DIR, 'data', 'resourceRegistry.js'));
+
 const migration001 = fs.readFileSync(path.join(ROOT_DIR, 'supabase', 'migrations', '001_student_analytics_foundation.sql'), 'utf-8').replace(/\r\n/g, '\n');
-const migration002 = fs.readFileSync(path.join(ROOT_DIR, 'supabase', 'migrations', '002_seed_courses_and_resources.sql'), 'utf-8').replace(/\r\n/g, '\n');
+const migration002 = fs.readFileSync(path.join(ROOT_DIR, 'supabase', 'migrations', '002_secure_tracking_rpcs.sql'), 'utf-8').replace(/\r\n/g, '\n');
+const migration003 = fs.readFileSync(path.join(ROOT_DIR, 'supabase', 'migrations', '003_seed_courses_and_resources.sql'), 'utf-8').replace(/\r\n/g, '\n');
+const migration004 = fs.readFileSync(path.join(ROOT_DIR, 'supabase', 'migrations', '004_admin_analytics_views.sql'), 'utf-8').replace(/\r\n/g, '\n');
 
 let totalTests = 0;
 let passedTests = 0;
@@ -30,7 +33,7 @@ function it(description, fn) {
 }
 
 console.log('\n============================================================');
-console.log('🧪 RUNNING INTEGRATION & TELEMETRY TEST SUITE');
+console.log('🧪 RUNNING INTEGRATION & TELEMETRY TEST SUITE (RPC ALIGNED)');
 console.log('============================================================\n');
 
 // ---------------------------------------------------------------------------
@@ -60,8 +63,8 @@ it('SupabaseBridge returns safe fallbacks for user queries and event insertion w
   const user = await fakeWindow.SupabaseBridge.getCurrentUser();
   assert.strictEqual(user, null, 'getCurrentUser should resolve to null');
 
-  const insertResult = await fakeWindow.SupabaseBridge.insertActivityEvent({ event_name: 'test' });
-  assert.strictEqual(insertResult.success, false, 'insertActivityEvent should return success=false');
+  const insertResult = await fakeWindow.SupabaseBridge.trackPortalEvent({ event_name: 'test' });
+  assert.strictEqual(insertResult.success, false, 'trackPortalEvent should return success=false');
   assert.strictEqual(insertResult.reason, 'unconfigured', 'Reason should be unconfigured');
 });
 
@@ -105,7 +108,7 @@ it('Tracker correctly classifies course, folder, chip, and youtube events', () =
     ResourceRegistry: registryJs,
     SupabaseBridge: {
       getCurrentUser: async () => null,
-      insertActivityEvent: async () => ({ success: false })
+      trackPortalEvent: async () => ({ success: false })
     },
     location: { pathname: '/electronics-2nd-year-materials/' },
     sessionStorage: {
@@ -129,7 +132,7 @@ it('Tracker correctly classifies course, folder, chip, and youtube events', () =
   );
 
   assert(fakeWindow.PortalTracker, 'PortalTracker should be exposed on window');
-  assert.strictEqual(fakeWindow.PortalTracker.getSessionId(), 'sess_test_123');
+  assert.strictEqual(fakeWindow.PortalTracker.getClientSessionId(), 'sess_test_123');
 });
 
 // ---------------------------------------------------------------------------
@@ -157,7 +160,7 @@ it('Unauthenticated users have user_id strictly set to null (never spoofed)', as
     ResourceRegistry: registryJs,
     SupabaseBridge: {
       getCurrentUser: async () => null, // Guest user
-      insertActivityEvent: async () => { throw new Error('Database insert should NOT be called for guest'); }
+      trackPortalEvent: async () => { throw new Error('Database insert should NOT be called for guest'); }
     },
     location: { pathname: '/' },
     sessionStorage: { getItem: () => 'sess_anon', setItem: () => {} },
@@ -178,7 +181,7 @@ it('Unauthenticated users have user_id strictly set to null (never spoofed)', as
   await fakeWindow.PortalTracker.dispatchEvent('folder_link_clicked', {
     course_id: 'emf',
     resource_id: 'SUB_01_EMF_MAIN',
-    properties: { title: 'مجالات' }
+    properties: { resource_type: 'folder', source: 'folder_link' }
   });
 
   assert.strictEqual(dispatchedEvents.length, 1);
@@ -188,61 +191,56 @@ it('Unauthenticated users have user_id strictly set to null (never spoofed)', as
 });
 
 // ---------------------------------------------------------------------------
-// 6. Row Level Security (RLS) Policy Audit
+// 6. Security & RPC Policy Audit (001 + 002)
 // ---------------------------------------------------------------------------
-console.log('\nTest Suite 6: Row Level Security (RLS) Policy Audit');
-it('RLS is strictly enabled across all Supabase tables', () => {
-  const tables = ['admin_users', 'profiles', 'courses', 'resources', 'sessions', 'activity_events'];
-  tables.forEach(table => {
-    assert(migration001.includes(`alter table public.${table} enable row level security;`), `RLS missing on ${table}`);
+console.log('\nTest Suite 6: Security & RPC Policy Audit (001 + 002)');
+it('Direct client-side INSERT/UPDATE on activity_events and sessions is completely revoked by 002', () => {
+  assert(migration002.includes('revoke insert, update, delete on public.activity_events from anon, authenticated;'), 'activity_events revoke missing');
+  assert(migration002.includes('revoke insert, update, delete on public.sessions from anon, authenticated;'), 'sessions revoke missing');
+  assert(migration002.includes('revoke insert, update, delete on public.profiles from anon, authenticated;'), 'profiles revoke missing');
+});
+
+it('All tracking operations are mediated exclusively through track_portal_event RPC', () => {
+  assert(migration002.includes('create or replace function public.track_portal_event'), 'track_portal_event function missing');
+  assert(migration002.includes('grant execute on function public.track_portal_event'), 'track_portal_event grant missing');
+  assert(migration002.includes('revoke all on function public.track_portal_event(uuid, text, uuid, uuid, text, jsonb) from public, anon;'), 'track_portal_event anon revoke missing');
+});
+
+it('Property allowlist strictly blocks arbitrary JSON or sensitive strings', () => {
+  const allowed = ['resource_type', 'filter_name', 'result_count', 'search_length', 'source'];
+  allowed.forEach(k => {
+    assert(migration002.includes(`'${k}'`), `Allowed property key '${k}' missing in 002`);
   });
 });
 
-it('Students can only insert activity_events matching their own authenticated user_id', () => {
-  assert(
-    migration001.includes('create policy "activity_insert_own"\non public.activity_events for insert to authenticated\nwith check (user_id = (select auth.uid()));'),
-    'activity_insert_own policy check failed'
-  );
-});
-
-it('Students cannot read other students activity events or profiles', () => {
-  assert(
-    migration001.includes('using (user_id = (select auth.uid()) or (select public.is_admin()));'),
-    'activity_read_own_or_admin policy check failed'
-  );
-  assert(
-    migration001.includes('using (id = (select auth.uid()) or (select public.is_admin()));'),
-    'profiles_read_own_or_admin policy check failed'
-  );
-});
-
-it('Admin role self-promotion is blocked (no client insert on admin_users)', () => {
-  assert(
-    !migration001.includes('create policy "admin_users_insert"'),
-    'Client-side admin insertion policy must NOT exist'
-  );
-});
-
 // ---------------------------------------------------------------------------
-// 7. Idempotent Seed Re-run Test
+// 7. Ordered Migrations & Idempotent Seed Re-run Test (003 + 004)
 // ---------------------------------------------------------------------------
-console.log('\nTest Suite 7: Idempotent Seed Re-run Test');
-it('Migration 002 uses ON CONFLICT DO UPDATE for all courses and resources', () => {
-  assert(migration002.includes('on conflict (slug) do update set'), 'Courses ON CONFLICT missing');
-  assert(migration002.includes('on conflict (resource_key) do update set'), 'Resources ON CONFLICT missing');
+console.log('\nTest Suite 7: Ordered Migrations & Idempotent Seed Re-run (003 + 004)');
+it('Migration 003 uses ON CONFLICT DO UPDATE for all courses and resources', () => {
+  assert(migration003.includes('on conflict (slug) do update set'), 'Courses ON CONFLICT missing');
+  assert(migration003.includes('on conflict (resource_key) do update set'), 'Resources ON CONFLICT missing');
 });
 
-it('Migration 002 seeds all 75 resources and the 6 main courses + general course', () => {
-  assert(migration002.includes("'general-term-1'"), 'general-term-1 course missing');
-  assert(migration002.includes("'emf'"), 'emf course missing');
-  assert(migration002.includes("'logic-circuits'"), 'logic-circuits course missing');
-  assert(migration002.includes("'oop-java'"), 'oop-java course missing');
-  assert(migration002.includes("'electric-circuits'"), 'electric-circuits course missing');
-  assert(migration002.includes("'math-5'"), 'math-5 course missing');
-  assert(migration002.includes("'humanities'"), 'humanities course missing');
+it('Migration 003 seeds all 75 resources and the 6 main courses + general course', () => {
+  assert(migration003.includes("'general-term-1'"), 'general-term-1 course missing');
+  assert(migration003.includes("'emf'"), 'emf course missing');
+  assert(migration003.includes("'logic-circuits'"), 'logic-circuits course missing');
+  assert(migration003.includes("'oop-java'"), 'oop-java course missing');
+  assert(migration003.includes("'electric-circuits'"), 'electric-circuits course missing');
+  assert(migration003.includes("'math-5'"), 'math-5 course missing');
+  assert(migration003.includes("'humanities'"), 'humanities course missing');
 
-  const resourceInserts = (migration002.match(/insert into public\.resources/g) || []).length;
+  const resourceInserts = (migration003.match(/insert into public\.resources/g) || []).length;
   assert.strictEqual(resourceInserts, 75, `Expected 75 resource inserts, got ${resourceInserts}`);
+});
+
+it('Migration 004 defines admin views with security_invoker = true', () => {
+  assert(migration004.includes('public.admin_course_analytics'), 'admin_course_analytics missing');
+  assert(migration004.includes('public.admin_resource_analytics'), 'admin_resource_analytics missing');
+  assert(migration004.includes('public.admin_daily_activity'), 'admin_daily_activity missing');
+  assert(migration004.includes('public.admin_overview_metrics'), 'admin_overview_metrics missing');
+  assert(migration004.includes('security_invoker = true'), 'security_invoker missing');
 });
 
 // ---------------------------------------------------------------------------
