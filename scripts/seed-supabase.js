@@ -26,64 +26,79 @@ if (!fs.existsSync(registryPath)) {
 const registry = JSON.parse(fs.readFileSync(registryPath, 'utf-8'));
 const flat = registry.flatIndex;
 
-// Parse CLI flags and Environment
+// Read secrets only from environment variables. Do not accept keys as CLI
+// arguments because command history and process listings can expose them.
 const args = process.argv.slice(2);
-let supabaseUrl = process.env.SUPABASE_URL || '';
-let serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+let supabaseUrl = (process.env.SUPABASE_URL || '').trim();
+let adminApiKey = (process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+const validateOnly = args.includes('--validate-only');
 
 for (let i = 0; i < args.length; i++) {
-  if (args[i] === '--url' && args[i + 1]) supabaseUrl = args[i + 1];
-  if (args[i] === '--service-key' && args[i + 1]) serviceRoleKey = args[i + 1];
-}
-
-// 1. Strict Anon Key Blocker & Validation
-if (!supabaseUrl || !serviceRoleKey) {
-  console.error('============================================================');
-  console.error('[SECURITY ERROR] Administrative Supabase credentials missing.');
-  console.error('This seed script modifies administrative tables and strictly requires');
-  console.error('SUPABASE_SERVICE_ROLE_KEY. The public anon key is strictly prohibited.');
-  console.error('');
-  console.error('Usage:');
-  console.error('  $env:SUPABASE_URL="https://your-project.supabase.co"');
-  console.error('  $env:SUPABASE_SERVICE_ROLE_KEY="eyJhbGciOi..."');
-  console.error('  node scripts/seed-supabase.js');
-  console.error('');
-  console.error('Or pass via flags:');
-  console.error('  node scripts/seed-supabase.js --url <URL> --service-key <SERVICE_ROLE_KEY>');
-  console.error('============================================================');
-  process.exit(1);
-}
-
-// Inspect JWT payload to verify it is NOT an anon key
-function isAnonKey(jwt) {
-  try {
-    const parts = jwt.split('.');
-    if (parts.length < 2) return false;
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf-8'));
-    return payload.role === 'anon';
-  } catch (e) {
-    return false;
+  if (args[i] === '--url' && args[i + 1]) supabaseUrl = args[i + 1].trim();
+  if (args[i] === '--secret-key' || args[i] === '--service-key') {
+    console.error('[SECURITY ERROR] Do not pass API keys as command-line arguments.');
+    console.error('Set SUPABASE_SECRET_KEY or SUPABASE_SERVICE_ROLE_KEY in the process environment.');
+    process.exit(1);
   }
 }
 
-if (isAnonKey(serviceRoleKey)) {
-  console.error('[SECURITY REJECTION] The supplied key has role="anon".');
-  console.error('Administrative database seeding requires role="service_role". Aborting.');
+// Current Supabase keys are opaque strings. Legacy service_role keys are JWTs.
+// Accept only an elevated secret; never infer that an unknown key is privileged.
+function classifyAdminKey(key) {
+  if (typeof key !== 'string' || !key) return 'missing';
+  if (/^sb_secret_[A-Za-z0-9_-]+$/.test(key)) return 'secret';
+  if (/^sb_publishable_[A-Za-z0-9_-]+$/.test(key)) return 'publishable';
+
+  try {
+    const parts = key.split('.');
+    if (parts.length !== 3) return 'invalid';
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf-8'));
+    if (payload.role === 'service_role') return 'legacy_service_role';
+    if (payload.role === 'anon') return 'anon';
+    return 'non_elevated_jwt';
+  } catch (e) {
+    return 'invalid';
+  }
+}
+
+const adminKeyType = classifyAdminKey(adminApiKey);
+if (!supabaseUrl || !adminApiKey) {
+  console.error('[SECURITY ERROR] Missing Supabase URL or server-side API key.');
+  console.error('Set SUPABASE_URL and SUPABASE_SECRET_KEY (preferred) or SUPABASE_SERVICE_ROLE_KEY (legacy).');
   process.exit(1);
 }
 
-function maskToken(token) {
-  if (!token || token.length < 10) return '***';
-  return token.substring(0, 6) + '...' + token.substring(token.length - 4);
+let parsedSupabaseUrl;
+try {
+  parsedSupabaseUrl = new URL(supabaseUrl);
+} catch (e) {
+  console.error('[SECURITY ERROR] SUPABASE_URL is not a valid URL.');
+  process.exit(1);
+}
+const isLocalLoopback = ['localhost', '127.0.0.1', '[::1]'].includes(parsedSupabaseUrl.hostname);
+if (parsedSupabaseUrl.protocol !== 'https:' && !(parsedSupabaseUrl.protocol === 'http:' && isLocalLoopback)) {
+  console.error('[SECURITY ERROR] HTTPS is required when sending an elevated API key.');
+  process.exit(1);
+}
+
+if (adminKeyType !== 'secret' && adminKeyType !== 'legacy_service_role') {
+  console.error('[SECURITY REJECTION] The supplied key is not an elevated Supabase secret/service_role key.');
+  console.error('Accepted formats: sb_secret_* or a legacy JWT with role="service_role".');
+  process.exit(1);
 }
 
 console.log('============================================================');
-console.log('🌱 SUPABASE RESOURCE IMPORT & UPSERT CLI');
+console.log('SUPABASE RESOURCE IMPORT & UPSERT CLI');
 console.log('============================================================');
 console.log('Target URL :', supabaseUrl);
-console.log('Auth Role  : service_role [Token masked: ' + maskToken(serviceRoleKey) + ']');
+console.log('Admin key  :', adminKeyType === 'secret' ? 'Secret API key [value hidden]' : 'Legacy service_role JWT [value hidden]');
 console.log('Total Items:', Object.keys(flat).length);
-console.log('============================================================\n');
+console.log('============================================================');
+
+if (validateOnly) {
+  console.log('[Validation] URL and elevated key format accepted. No network request was made.');
+  process.exit(0);
+}
 
 // HTTPS Request Helper
 function requestSupabase(endpoint, method, body, extraHeaders = {}) {
@@ -97,11 +112,16 @@ function requestSupabase(endpoint, method, body, extraHeaders = {}) {
 
     const postData = body ? JSON.stringify(body) : null;
     const headers = {
-      'apikey': serviceRoleKey,
-      'Authorization': 'Bearer ' + serviceRoleKey,
+      'apikey': adminApiKey,
       'Content-Type': 'application/json',
       ...extraHeaders
     };
+
+    // Opaque sb_secret_* keys must only be sent in apikey. Legacy service_role
+    // JWTs can be sent in both headers for backwards compatibility.
+    if (adminKeyType === 'legacy_service_role') {
+      headers['Authorization'] = 'Bearer ' + adminApiKey;
+    }
 
     const options = {
       hostname: urlObj.hostname,
