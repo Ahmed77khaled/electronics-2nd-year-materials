@@ -416,6 +416,70 @@ it('Supabase Bridge binds database sessions to the authenticated owner', () => {
   assert(!supabaseClientSource.includes('eventData.session_id'), 'Client-supplied session IDs must not be trusted');
 });
 
+it('Concurrent session starts are deduplicated and hidden tabs close their database session', async () => {
+  const listeners = {};
+  const docListeners = {};
+  let startCalls = 0;
+  let endCalls = 0;
+  const sessionUuid = '123e4567-e89b-42d3-a456-426614174000';
+
+  const fakeWindow = {
+    APP_CONFIG: { analytics: { debug: false, clickDebounceMs: 1000 } },
+    location: { pathname: '/electronics-2nd-year-materials/' },
+    addEventListener: (name, fn) => { listeners[name] = fn; },
+    dispatchEvent: () => {},
+    document: {
+      readyState: 'complete',
+      visibilityState: 'visible',
+      hasFocus: () => true,
+      addEventListener: (name, fn) => { docListeners[name] = fn; },
+      getElementById: () => null,
+      querySelector: () => null
+    },
+    SupabaseBridge: {
+      isReady: () => true,
+      isUuid: value => value === sessionUuid,
+      startPortalSession: async () => {
+        startCalls++;
+        await new Promise(resolve => setTimeout(resolve, 10));
+        return sessionUuid;
+      },
+      endPortalSession: async id => {
+        assert.strictEqual(id, sessionUuid);
+        endCalls++;
+        return true;
+      },
+      heartbeatPortalSession: async () => ({ success: true, creditedSeconds: 0 }),
+      getCurrentUser: async () => ({ id: 'test-user-id' }),
+      trackPortalEvent: async () => ({ success: true }),
+      onAuthStateChange: () => () => {}
+    }
+  };
+  const storage = { getItem: () => null, setItem: () => {} };
+
+  new Function('self', 'root', 'window', 'document', 'sessionStorage', trackerSource)(
+    fakeWindow, fakeWindow, fakeWindow, fakeWindow.document, storage
+  );
+
+  try {
+    const ids = await Promise.all([
+      fakeWindow.PortalTracker.ensureDatabaseSession(),
+      fakeWindow.PortalTracker.ensureDatabaseSession()
+    ]);
+    assert.deepStrictEqual(ids, [sessionUuid, sessionUuid]);
+    assert.strictEqual(startCalls, 1, 'Concurrent start requests must create one database session');
+    assert.strictEqual(fakeWindow.PortalTracker.getDatabaseSessionId(), sessionUuid);
+
+    fakeWindow.document.visibilityState = 'hidden';
+    docListeners.visibilitychange();
+    await new Promise(resolve => setTimeout(resolve, 400));
+    assert.strictEqual(endCalls, 1, 'Hidden tab must close its active database session');
+    assert.strictEqual(fakeWindow.PortalTracker.getDatabaseSessionId(), null);
+  } finally {
+    fakeWindow.PortalTracker.stopHeartbeat();
+  }
+});
+
 // ---------------------------------------------------------------------------
 // 16. Admin Analytics Authorization
 // ---------------------------------------------------------------------------
