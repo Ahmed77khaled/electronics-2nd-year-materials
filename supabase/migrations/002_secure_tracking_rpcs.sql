@@ -85,7 +85,7 @@ begin
     raise exception 'Authentication required' using errcode = '28000';
   end if;
 
-  if p_event_name not in (
+  if p_event_name is null or p_event_name not in (
     'page_view',
     'login_success',
     'course_click',
@@ -240,6 +240,7 @@ begin
   set ended_at = coalesce(ended_at, clock_timestamp())
   where id = p_session_id
     and user_id = v_user_id
+    and ended_at is null
   returning entry_path into v_path;
 
   if not found then
