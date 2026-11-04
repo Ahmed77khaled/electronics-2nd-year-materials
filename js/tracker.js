@@ -29,6 +29,7 @@
   var databaseSessionId = null;
   var sessionStartPromise = null;
   var sessionStartGeneration = -1;
+  var sessionClosePromise = null;
   var lifecycleGeneration = 0;
   var pendingPauseTimer = null;
   var pendingTrackingWrites = 0;
@@ -111,6 +112,12 @@
       return null;
     }
 
+    // Never create/reuse a session while the prior session's final heartbeat
+    // and end RPC are still in flight.
+    if (sessionClosePromise) {
+      try { await sessionClosePromise; } catch (err) {}
+    }
+
     if (databaseSessionId && isUuid(databaseSessionId)) return databaseSessionId;
 
     // A click can open another tab while its start RPC is in flight. Join that
@@ -187,20 +194,30 @@
     var sessionId = databaseSessionId;
     databaseSessionId = null;
 
-    if (sessionId && isUuid(sessionId) && root.SupabaseBridge &&
-        typeof root.SupabaseBridge.endPortalSession === 'function') {
-      var mayFlushFinalInterval = finalInteractionTime &&
-        (Date.now() - finalInteractionTime) <= IDLE_TIMEOUT_MS;
-      var finalHeartbeat = mayFlushFinalInterval ? sendHeartbeat(sessionId) : Promise.resolve(null);
-
-      finalHeartbeat.then(function() {
-        return root.SupabaseBridge.endPortalSession(sessionId);
-      }).then(function() {
-        if (root.APP_CONFIG && root.APP_CONFIG.analytics && root.APP_CONFIG.analytics.debug) {
-          console.info('[PortalTracker] Database session closed:', reason || 'pause');
-        }
-      }).catch(function() {});
+    if (!sessionId || !isUuid(sessionId) || !root.SupabaseBridge ||
+        typeof root.SupabaseBridge.endPortalSession !== 'function') {
+      return Promise.resolve(false);
     }
+
+    var mayFlushFinalInterval = finalInteractionTime &&
+      (Date.now() - finalInteractionTime) <= IDLE_TIMEOUT_MS;
+    var finalHeartbeat = mayFlushFinalInterval ? sendHeartbeat(sessionId) : Promise.resolve(null);
+    var closePromise = finalHeartbeat.then(function() {
+      return root.SupabaseBridge.endPortalSession(sessionId);
+    }).then(function(result) {
+      if (root.APP_CONFIG && root.APP_CONFIG.analytics && root.APP_CONFIG.analytics.debug) {
+        console.info('[PortalTracker] Database session closed:', reason || 'pause');
+      }
+      return result;
+    }).catch(function() {
+      return false;
+    });
+
+    sessionClosePromise = closePromise;
+    closePromise.then(function() {
+      if (sessionClosePromise === closePromise) sessionClosePromise = null;
+    });
+    return closePromise;
   }
 
   function schedulePause(reason) {
