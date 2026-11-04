@@ -127,7 +127,9 @@
       var pending = sessionStartPromise;
       var pendingGeneration = sessionStartGeneration;
       await pending;
-      if (pendingGeneration !== lifecycleGeneration) return null;
+      if (pendingGeneration !== lifecycleGeneration) {
+        return isForeground() ? ensureDatabaseSession() : null;
+      }
       if (databaseSessionId && isUuid(databaseSessionId)) return databaseSessionId;
     }
 
@@ -136,14 +138,21 @@
     sessionStartGeneration = generation;
     var startPromise = bridge.startPortalSession(
       (root.location && root.location.pathname) || '/'
-    ).then(function(sessionId) {
+    ).then(async function(sessionId) {
       if (!isUuid(sessionId)) return null;
 
       // If the page went hidden while the start RPC was in flight, close the
-      // just-created server session rather than leaving a live tab session.
+      // just-created server session. Serialize any restart behind that close.
       if (generation !== lifecycleGeneration) {
         if (typeof bridge.endPortalSession === 'function') {
-          bridge.endPortalSession(sessionId).catch(function() {});
+          var staleClose = Promise.resolve(bridge.endPortalSession(sessionId)).catch(function() {
+            return false;
+          });
+          sessionClosePromise = staleClose;
+          staleClose.then(function() {
+            if (sessionClosePromise === staleClose) sessionClosePromise = null;
+          });
+          await staleClose;
         }
         return null;
       }
