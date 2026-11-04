@@ -211,9 +211,13 @@
   }
 
   function dispatchLocalTelemetry(payload) {
-    if (typeof window === 'undefined' || typeof window.dispatchEvent !== 'function' ||
-        typeof CustomEvent === 'undefined') return;
-    window.dispatchEvent(new CustomEvent('analytics:telemetry_event', { detail: payload }));
+    if (typeof window === 'undefined' || typeof window.dispatchEvent !== 'function') return;
+    if (typeof CustomEvent !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('analytics:telemetry_event', { detail: payload }));
+    } else {
+      // Lightweight fallback for non-browser test harnesses.
+      window.dispatchEvent({ type: 'analytics:telemetry_event', detail: payload });
+    }
   }
 
   async function dispatchEvent(eventName, payload) {
