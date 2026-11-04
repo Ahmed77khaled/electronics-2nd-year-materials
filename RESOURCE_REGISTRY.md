@@ -166,29 +166,16 @@
 
 ---
 
-## 🛠️ 4. كود التتبع البرمجي المقترح (Client-Side Telemetry Snippet)
-عند تفعيل التحليلات أو الربط مع Firebase / Google Analytics، يتم استخدام الكود التالي في صفحة الويب:
+## 🛠️ 4. التكامل البرمجي الحالي (Current Integration)
 
-```javascript
-// تتبع نقرات الطلاب عبر الـ Resource ID
-document.addEventListener('click', function(event) {
-  const el = event.target.closest('[data-resource-id]');
-  if (el) {
-    const resourceId = el.getAttribute('data-resource-id');
-    const resourceType = el.getAttribute('data-resource-type') || 'unknown';
-    
-    // إرسال للـ Telemetry
-    console.log('[Telemetry Hit]', {
-      resourceId: resourceId,
-      type: resourceType,
-      timestamp: new Date().toISOString()
-    });
-    
-    // مثال للربط مع Google Analytics 4:
-    // gtag('event', 'select_resource', { resource_id: resourceId, resource_type: resourceType });
-  }
-});
-```
+مصدر الحقيقة للموارد هو `data/resource-registry.json`، ونسخة المتصفح هي
+`data/resourceRegistry.js`. يضيف `index.html` معرف المورد إلى عناصر الروابط عبر
+`data-resource-id`، ثم يتولى `js/tracker.js` تصنيف الأحداث وإرسالها من خلال
+`js/supabase-client.js` إلى دوال Supabase RPC الآمنة.
 
----
-🏛️ **تم التوثيق والاعتماد — مشروع توثيق ماتريال الفرقة الثانية هندسة إلكترونيات.**
+لا تُنشئ هذا الدليل أو تستخدمه لإرسال عمليات كتابة مباشرة إلى جداول قاعدة البيانات. كل عمليات
+تسجيل الجلسات والأحداث تمر عبر RPC، وتُحوّل مفاتيح الموارد النصية إلى UUIDs الخاصة بقاعدة
+البيانات قبل الإرسال. راجع `supabase/TRACKING_RPCS.md` لتفاصيل الجلسات والأمان والقيود.
+
+> الضغط على رابط Drive أو YouTube يُسجَّل كتفاعل مع الرابط فقط؛ لا يعني ذلك أن الطالب فتح
+> المحتوى أو قرأه أو أكمل مشاهدته. ولا يتم احتساب وقت الموقع الخارجي ضمن وقت البوابة.
