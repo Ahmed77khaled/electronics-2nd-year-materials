@@ -5,6 +5,15 @@
 
 begin;
 
+-- Support time-window dashboards and active-session maintenance queries.
+create index if not exists activity_occurred_at_idx
+  on public.activity_events (occurred_at desc);
+create index if not exists activity_user_event_time_idx
+  on public.activity_events (user_id, event_name, occurred_at desc);
+create index if not exists sessions_open_heartbeat_idx
+  on public.sessions (last_heartbeat_at desc)
+  where ended_at is null;
+
 create or replace view public.admin_course_analytics
 with (security_invoker = true)
 as
