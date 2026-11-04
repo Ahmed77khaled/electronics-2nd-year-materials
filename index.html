@@ -1,47 +1,1604 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>دليل الماتريال المجمعة — الفرقة الثانية هندسة إلكترونيات — الترم الأول</title>
+<meta name="description" content="دليل ومخطط وصول مباشر لكافة مراجع ومحاضرات وشيتات وامتحانات مواد الترم الأول - الفرقة الثانية هندسة إلكترونيات">
 <style>
-:root{--navy:#1E3A8A;--navy-deep:#172B6B;--cyan:#0891B2;--cyan-bright:#22D3EE;--cyan-tint:#ECFEFF;--ink:#1F2937;--muted:#64748B;--border:#E2E8F0;--line:#A9B7CE;--bg:#F8FAFC;--chip:#F1F5F9;--badge:#DBEAFE}
-*{box-sizing:border-box}html{-webkit-print-color-adjust:exact;print-color-adjust:exact}body{margin:0;background:var(--bg);color:var(--ink);font-family:"Cairo","Segoe UI","Noto Sans Arabic",Tahoma,"DejaVu Sans",Arial,sans-serif;line-height:1.5}.page{width:min(100% - 48px,1640px);margin:auto;padding:42px 0 54px}
-.title-card{max-width:1320px;margin:auto;text-align:center;background:var(--navy);color:#fff;border-radius:28px;padding:30px 40px 28px;box-shadow:0 12px 30px #1e3a8a38}.title-card h1{margin:0;font-size:34px;line-height:1.4;font-weight:800}.title-card h1 a{color:#fff;text-decoration:none;border-bottom:2px solid #a5f3fc88;padding-bottom:2px}.title-rule{width:64px;height:4px;border-radius:4px;background:var(--cyan-bright);margin:16px auto 12px}.author{margin:0;font-size:22px;font-weight:700;color:#bae6fd}.hint{display:inline-block;margin-top:14px;padding:5px 16px;background:var(--badge);color:var(--navy);border:1px solid #bfdbfe;border-radius:999px;font-size:14px;font-weight:600}
-.tree{position:relative;padding-top:56px}.tree:before{content:"";position:absolute;top:0;left:50%;width:2px;height:29px;margin-left:-1px;background:var(--navy)}.branches{display:grid;grid-template-columns:repeat(3,1fr);gap:48px 18px;position:relative}.branches:before{content:"";position:absolute;top:-28px;left:16.66%;right:16.66%;height:2px;background:var(--navy)}.branch{position:relative;padding:0 8px}.branch:before{content:"";position:absolute;top:-28px;left:50%;width:2px;height:28px;background:var(--navy)}
-.branch-card{display:flex;align-items:center;gap:14px;background:#fff;border:2px solid var(--navy);border-radius:20px;padding:13px 16px;box-shadow:0 6px 18px #1e3a8a1a;min-height:94px}.branch-card:hover{border-color:var(--cyan);box-shadow:0 8px 22px #0891b22e}.num{flex:none;width:43px;height:43px;border-radius:50%;background:var(--navy);color:#fff;display:grid;place-items:center;font-size:20px;font-weight:800}.branch-text{flex:1;min-width:0}.branch-label{display:block;font-size:14px;color:var(--muted);font-weight:600}.branch-name{font-size:21px;font-weight:800;line-height:1.3}.branch-sub{margin:2px 0 0;font-size:13px;color:var(--muted)}.ico{flex:none;width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:var(--cyan-tint);color:#0e7490;border:1px solid #cffafe}.ico svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.folder{display:inline-block;direction:ltr;unicode-bidi:isolate;color:var(--navy);font-weight:700;text-decoration:none;border-bottom:2px solid #a5f3fc;padding-bottom:1px}.folder:hover{background:var(--cyan-tint);border-bottom-color:var(--cyan)}.linked .folder:focus-visible{outline:3px solid var(--cyan-bright);outline-offset:3px;border-radius:6px}.branch-body{margin-top:19px}.stack{position:relative;display:flex;flex-direction:column;gap:12px;padding-inline-start:28px}.stack>.card:before{content:"";position:absolute;inset-inline-start:-17px;top:29px;width:17px;height:2px;background:var(--line)}.stack>.card:after{content:"";position:absolute;inset-inline-start:-17px;width:2px;top:-12px;bottom:-12px;background:var(--line)}.stack>.card:first-child:after{top:-20px}.stack>.card:last-child:after{bottom:auto;height:42px}.card{position:relative;background:#fff;border:1px solid var(--border);border-radius:15px;padding:11px 14px 12px;box-shadow:0 2px 8px #0f172a0d}.card.linked:hover{border-color:var(--cyan-bright);box-shadow:0 6px 16px #0891b228}.card-head{display:flex;align-items:center;gap:9px;min-height:32px}.card-head .folder,.card-title{font-size:17px}.card-title{font-weight:700;color:var(--navy)}.desc{margin:7px 0 0;font-size:13px;color:var(--muted);line-height:1.5}.items{list-style:none;margin:5px 0 0;padding:0}.items li{position:relative;padding-inline-start:16px;font-size:13px;line-height:1.65}.items li:before{content:"";position:absolute;inset-inline-start:2px;top:.85em;width:5px;height:5px;border-radius:50%;background:var(--cyan-bright)}.ltr{direction:ltr;unicode-bidi:isolate;display:inline-block}.sub{position:relative;margin-top:8px;background:var(--bg);border:1px solid var(--border);border-radius:11px;padding:8px 11px}.sub:hover{border-color:var(--cyan-bright);background:#fff}.sub .card-head{min-height:26px}.sub .card-head .folder{font-size:15px}.sub .ico{width:27px;height:27px;border-radius:8px}.sub .ico svg{width:16px;height:16px}.count{display:inline-block;margin-top:7px;padding:2px 8px;background:#eff6ff;color:#1e3a8a;border-radius:999px;font-size:11px;font-weight:700}.playlist{display:block;margin-top:7px;padding:7px 10px;border:1px solid #bae6fd;border-radius:10px;background:#f0f9ff;color:#075985;text-decoration:none;font-size:12px;line-height:1.35}.playlist:hover{background:#cffafe;border-color:var(--cyan-bright)}
-.site-footer{margin-top:48px;text-align:center;padding:22px 0 8px;border-top:1px solid var(--border)}
-.credit-badge{display:inline-flex;align-items:center;gap:8px;padding:8px 24px;background:#fff;border:1px solid var(--border);border-radius:999px;box-shadow:0 2px 8px #0f172a0a;color:var(--muted);font-size:14px;font-weight:600;direction:ltr;unicode-bidi:isolate;letter-spacing:.2px}
-.credit-badge strong{color:var(--navy);font-weight:800}
-@media(max-width:1180px){.branches{grid-template-columns:repeat(2,1fr)}.branches:before{display:none}.branch:before{display:none}}@media(max-width:680px){.page{width:calc(100% - 24px);padding-top:22px}.title-card h1{font-size:25px}.title-card{padding:24px 18px}.branches{grid-template-columns:1fr}.tree{padding-top:28px}.tree:before{display:none}}
-@page{size:1720px 1400px;margin:0}@media print{body{background:var(--bg)}.page{width:1640px;padding-top:42px}.branches{grid-template-columns:repeat(3,1fr)}.branch-card,.card,.title-card{break-inside:avoid}}
+  :root {
+    --navy: #1E3A8A;
+    --navy-deep: #172B6B;
+    --cyan: #0891B2;
+    --cyan-bright: #22D3EE;
+    --cyan-tint: #ECFEFF;
+    --cyan-line: #A5F3FC;
+    --ink: #1F2937;
+    --muted: #64748B;
+    --card-border: #E2E8F0;
+    --line: #A9B7CE;
+    --bg: #F8FAFC;
+    --chip: #F1F5F9;
+    --badge: #DBEAFE;
+    --badge-border: #BFDBFE;
+    --yt-red: #DC2626;
+    --yt-tint: #FEF2F2;
+    --yt-border: #FECACA;
+    --focus-ring: #22D3EE;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Cairo", "Segoe UI", "Noto Sans Arabic", Tahoma, "DejaVu Sans", Arial, sans-serif;
+    direction: rtl;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  .page {
+    width: min(100% - 48px, 1640px);
+    margin: 0 auto;
+    padding: 36px 0 56px;
+  }
+
+  /* ==================== Title card ==================== */
+  .title-card {
+    max-width: 1320px;
+    margin: 0 auto;
+    text-align: center;
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-deep) 100%);
+    color: #fff;
+    border-radius: 26px;
+    padding: 32px 36px 28px;
+    box-shadow: 0 12px 32px rgba(30, 58, 138, 0.22);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .title-card::after {
+    content: "";
+    position: absolute;
+    top: -50%;
+    left: -20%;
+    width: 140%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(34, 211, 238, 0.08) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  .title-card h1 {
+    font-size: 32px;
+    line-height: 1.35;
+    font-weight: 800;
+    color: #FFFFFF;
+    letter-spacing: -0.3px;
+  }
+
+  .title-card .title-sub {
+    display: block;
+    font-size: 20px;
+    font-weight: 700;
+    color: #BAE6FD;
+    margin-top: 6px;
+  }
+
+  .title-rule {
+    width: 64px;
+    height: 4px;
+    border-radius: 4px;
+    background: var(--cyan-bright);
+    margin: 16px auto 14px;
+  }
+
+  .title-desc {
+    margin: 0 auto;
+    max-width: 780px;
+    font-size: 16px;
+    font-weight: 500;
+    color: #E0F2FE;
+    line-height: 1.6;
+  }
+
+  .header-actions {
+    margin-top: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+  }
+
+  .main-drive-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 22px;
+    background: #FFFFFF;
+    color: var(--navy);
+    font-size: 15px;
+    font-weight: 800;
+    text-decoration: none;
+    border-radius: 999px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+  }
+
+  .main-drive-btn:hover {
+    background: var(--cyan-tint);
+    color: var(--navy-deep);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(34, 211, 238, 0.35);
+  }
+
+  .main-drive-btn:focus-visible {
+    outline: 3px solid var(--cyan-bright);
+    outline-offset: 3px;
+  }
+
+  .main-drive-btn .btn-ico {
+    width: 20px;
+    height: 20px;
+  }
+
+  .main-drive-btn .ext-ico {
+    width: 14px;
+    height: 14px;
+    opacity: 0.75;
+  }
+
+  .hint-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 16px;
+    background: rgba(219, 234, 254, 0.18);
+    color: #BAE6FD;
+    border: 1px solid rgba(191, 219, 254, 0.3);
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  /* ==================== Search Component ==================== */
+  .search-section {
+    max-width: 1320px;
+    margin: 28px auto 0;
+    padding: 0 8px;
+  }
+
+  .search-bar-wrapper {
+    position: relative;
+    background: #FFFFFF;
+    border: 2px solid var(--card-border);
+    border-radius: 20px;
+    padding: 6px 16px;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .search-bar-wrapper:focus-within {
+    border-color: var(--cyan);
+    box-shadow: 0 6px 20px rgba(8, 145, 178, 0.18);
+  }
+
+  .search-icon-box {
+    color: var(--cyan);
+    display: grid;
+    place-items: center;
+    flex: none;
+  }
+
+  .search-icon-box svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .search-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--ink);
+    background: transparent;
+    padding: 8px 0;
+    direction: rtl;
+  }
+
+  .search-input::placeholder {
+    color: #94A3B8;
+    font-weight: 500;
+  }
+
+  .search-clear-btn {
+    display: none;
+    background: var(--chip);
+    border: 1px solid var(--card-border);
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 800;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    place-items: center;
+    transition: background-color 0.15s, color 0.15s;
+  }
+
+  .search-clear-btn:hover {
+    background: #E2E8F0;
+    color: var(--ink);
+  }
+
+  .search-clear-btn.active {
+    display: grid;
+  }
+
+  .search-kbd {
+    display: inline-block;
+    padding: 2px 8px;
+    background: var(--chip);
+    border: 1px solid var(--card-border);
+    border-radius: 6px;
+    font-size: 11px;
+    font-family: inherit;
+    font-weight: 700;
+    color: var(--muted);
+    direction: ltr;
+  }
+
+  /* Quick filter tags */
+  .search-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 14px;
+    padding: 0 4px;
+  }
+
+  .filter-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--muted);
+    margin-left: 4px;
+  }
+
+  .filter-tag {
+    background: #FFFFFF;
+    border: 1px solid var(--card-border);
+    border-radius: 999px;
+    padding: 5px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+  }
+
+  .filter-tag:hover {
+    border-color: var(--cyan);
+    background: var(--cyan-tint);
+    color: var(--cyan);
+  }
+
+  .filter-tag.active {
+    background: var(--navy);
+    border-color: var(--navy);
+    color: #FFFFFF;
+  }
+
+  .search-status {
+    margin-top: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    padding: 0 4px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  /* Empty State */
+  .empty-state {
+    text-align: center;
+    padding: 48px 24px;
+    background: #FFFFFF;
+    border: 2px dashed var(--card-border);
+    border-radius: 22px;
+    margin-top: 32px;
+  }
+
+  .empty-emoji {
+    font-size: 42px;
+    margin-bottom: 12px;
+  }
+
+  .empty-state h3 {
+    font-size: 20px;
+    color: var(--navy);
+    margin-bottom: 6px;
+    font-weight: 800;
+  }
+
+  .empty-state p {
+    font-size: 15px;
+    color: var(--muted);
+    margin-bottom: 18px;
+  }
+
+  .btn-reset {
+    background: var(--navy);
+    color: #FFFFFF;
+    border: none;
+    border-radius: 999px;
+    padding: 8px 22px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background-color 0.15s;
+  }
+
+  .btn-reset:hover {
+    background: var(--cyan);
+  }
+
+  /* ==================== Tree Architecture ==================== */
+  .tree {
+    position: relative;
+    padding-top: 56px;
+  }
+
+  .tree::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 2px;
+    height: 30px;
+    margin-left: -1px;
+    background: var(--navy);
+  }
+
+  .branches {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 48px 20px;
+    position: relative;
+  }
+
+  .branches::before {
+    content: "";
+    position: absolute;
+    top: -26px;
+    left: 16.66%;
+    right: 16.66%;
+    height: 2px;
+    background: var(--navy);
+  }
+
+  .branch {
+    position: relative;
+    padding: 0 6px;
+    transition: opacity 0.2s;
+  }
+
+  .branch::before {
+    content: "";
+    position: absolute;
+    top: -26px;
+    left: 50%;
+    width: 2px;
+    height: 26px;
+    margin-left: -1px;
+    background: var(--navy);
+  }
+
+  .branch.hidden {
+    display: none;
+  }
+
+  /* Branch Card (Subject Title Card) */
+  .branch-card {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: #FFFFFF;
+    border: 2px solid var(--navy);
+    border-radius: 20px;
+    padding: 14px 18px;
+    box-shadow: 0 6px 18px rgba(30, 58, 138, 0.10);
+    min-height: 96px;
+    transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+  }
+
+  .branch-card::before {
+    content: "";
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    margin-left: -8px;
+    border: 8px solid transparent;
+    border-top: 9px solid var(--navy);
+    border-bottom: 0;
+  }
+
+  .branch-card:hover {
+    border-color: var(--cyan);
+    box-shadow: 0 8px 22px rgba(8, 145, 178, 0.18);
+    transform: translateY(-2px);
+  }
+
+  .num {
+    flex: none;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--navy);
+    color: #FFFFFF;
+    display: grid;
+    place-items: center;
+    font-size: 20px;
+    font-weight: 800;
+  }
+
+  .branch-text {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .branch-label {
+    display: block;
+    font-size: 13px;
+    color: var(--muted);
+    font-weight: 700;
+    margin-bottom: 1px;
+  }
+
+  .branch-name {
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1.35;
+    color: var(--navy);
+    text-decoration: none;
+    border-bottom: 2px solid var(--cyan-line);
+    padding-bottom: 1px;
+    display: inline-block;
+    transition: background-color 0.15s, border-color 0.15s;
+  }
+
+  .branch-name:hover {
+    background: var(--cyan-tint);
+    border-bottom-color: var(--cyan);
+  }
+
+  .branch-sub {
+    margin: 3px 0 0;
+    font-size: 13px;
+    color: var(--muted);
+    font-weight: 500;
+    line-height: 1.4;
+  }
+
+  .branch-card .ico {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: var(--cyan-tint);
+    color: #0E7490;
+    border: 1px solid #CFFAFE;
+    display: grid;
+    place-items: center;
+    flex: none;
+  }
+
+  .branch-card .ico svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  /* Branch Body & Card Stacks */
+  .branch-body {
+    margin-top: 20px;
+  }
+
+  .stack {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding-inline-start: 28px;
+  }
+
+  .stack > .card::before {
+    content: "";
+    position: absolute;
+    inset-inline-start: -18px;
+    top: 28px;
+    width: 18px;
+    height: 2px;
+    background: var(--line);
+  }
+
+  .stack > .card::after {
+    content: "";
+    position: absolute;
+    inset-inline-start: -18px;
+    width: 2px;
+    top: -14px;
+    bottom: -14px;
+    background: var(--line);
+  }
+
+  .stack > .card:first-child::after {
+    top: -22px;
+  }
+
+  .stack > .card:last-child::after {
+    bottom: auto;
+    height: 42px;
+  }
+
+  .stack > .card:first-child:last-child::after {
+    top: -22px;
+    height: 50px;
+  }
+
+  /* ==================== Resource Cards ==================== */
+  .card {
+    position: relative;
+    background: #FFFFFF;
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    padding: 13px 16px 14px;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+    transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+  }
+
+  .card.linked:hover {
+    border-color: var(--cyan-bright);
+    box-shadow: 0 6px 18px rgba(8, 145, 178, 0.16);
+    transform: translateY(-1px);
+  }
+
+  .card-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 34px;
+  }
+
+  .folder {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    direction: ltr;
+    unicode-bidi: isolate;
+    color: var(--navy);
+    font-size: 17px;
+    font-weight: 700;
+    text-decoration: none;
+    border-bottom: 2px solid var(--cyan-line);
+    padding-bottom: 1px;
+    transition: background-color 0.15s, border-color 0.15s;
+  }
+
+  .folder:hover {
+    background: var(--cyan-tint);
+    border-bottom-color: var(--cyan);
+  }
+
+  .folder:focus-visible, .branch-name:focus-visible, .playlist:focus-visible {
+    outline: 3px solid var(--focus-ring);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+
+  .folder .ext-badge {
+    width: 14px;
+    height: 14px;
+    opacity: 0.55;
+    flex: none;
+    transition: opacity 0.15s;
+  }
+
+  .card.linked:hover .folder .ext-badge {
+    opacity: 1;
+    color: var(--cyan);
+  }
+
+  .card-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--navy);
+  }
+
+  .ico {
+    flex: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    background: var(--cyan-tint);
+    color: #0E7490;
+    border: 1px solid #CFFAFE;
+  }
+
+  .ico svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .ico-yt {
+    background: var(--yt-tint);
+    color: var(--yt-red);
+    border-color: var(--yt-border);
+  }
+
+  .desc {
+    margin: 8px 0 0;
+    font-size: 13.5px;
+    color: var(--muted);
+    line-height: 1.55;
+  }
+
+  .ltr {
+    direction: ltr;
+    unicode-bidi: isolate;
+    display: inline-block;
+  }
+
+  .items {
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 0;
+  }
+
+  .items li {
+    position: relative;
+    padding-inline-start: 16px;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--ink);
+  }
+
+  .items li::before {
+    content: "";
+    position: absolute;
+    inset-inline-start: 2px;
+    top: 0.85em;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--cyan-bright);
+  }
+
+  /* Sub-folders inside card */
+  .sub {
+    position: relative;
+    margin-top: 10px;
+    background: var(--bg);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 9px 12px;
+    transition: border-color 0.15s, background-color 0.15s;
+  }
+
+  .sub.linked:hover {
+    border-color: var(--cyan-bright);
+    background: #FFFFFF;
+  }
+
+  .sub .card-head {
+    min-height: 28px;
+    gap: 8px;
+  }
+
+  .sub .card-head .folder {
+    font-size: 15px;
+  }
+
+  .sub .ico {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+  }
+
+  .sub .ico svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .sub .items {
+    margin-top: 4px;
+  }
+
+  /* YouTube Playlist Cards */
+  .playlist {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 8px;
+    padding: 8px 12px;
+    border: 1px solid var(--yt-border);
+    border-radius: 10px;
+    background: var(--yt-tint);
+    color: #991B1B;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.4;
+    transition: background-color 0.15s, border-color 0.15s, transform 0.15s;
+  }
+
+  .playlist:hover {
+    background: #FEE2E2;
+    border-color: var(--yt-red);
+    transform: translateY(-1px);
+  }
+
+  .playlist-text {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .playlist .yt-ico {
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
+    flex: none;
+  }
+
+  .playlist .ext-badge {
+    width: 12px;
+    height: 12px;
+    opacity: 0.6;
+    flex: none;
+  }
+
+  /* Highlight text during search */
+  mark.highlight {
+    background: #FEF08A;
+    color: #854D0E;
+    padding: 1px 3px;
+    border-radius: 4px;
+  }
+
+  /* ==================== Footer ==================== */
+  .site-footer {
+    margin-top: 56px;
+    text-align: center;
+    padding: 24px 0 10px;
+    border-top: 1px solid var(--card-border);
+  }
+
+  .credit-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 26px;
+    background: #FFFFFF;
+    border: 1px solid var(--card-border);
+    border-radius: 999px;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 600;
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
+
+  .credit-badge strong {
+    color: var(--navy);
+    font-weight: 800;
+  }
+
+  /* ==================== Responsive Queries ==================== */
+  @media screen and (max-width: 1200px) {
+    .branches {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 40px 18px;
+    }
+    .branches::before {
+      display: none;
+    }
+    .branch::before {
+      display: none;
+    }
+    .tree {
+      padding-top: 36px;
+    }
+    .tree::before {
+      display: none;
+    }
+  }
+
+  @media screen and (max-width: 768px) {
+    .page {
+      width: calc(100% - 24px);
+      padding: 20px 0 40px;
+    }
+    .title-card {
+      padding: 24px 18px 22px;
+      border-radius: 20px;
+    }
+    .title-card h1 {
+      font-size: 24px;
+    }
+    .title-card .title-sub {
+      font-size: 16px;
+    }
+    .title-desc {
+      font-size: 14px;
+    }
+    .main-drive-btn {
+      width: 100%;
+      justify-content: center;
+      padding: 11px 18px;
+    }
+    .branches {
+      grid-template-columns: 1fr;
+      gap: 32px;
+    }
+    .branch-card {
+      padding: 12px 14px;
+      min-height: auto;
+    }
+    .branch-name {
+      font-size: 18px;
+    }
+    .branch-card::before {
+      display: none;
+    }
+    .stack {
+      padding-inline-start: 16px;
+    }
+    .stack > .card::before,
+    .stack > .card::after {
+      display: none;
+    }
+    .search-kbd {
+      display: none;
+    }
+  }
+
+  /* ==================== Print / PDF Stylesheet ==================== */
+  @page {
+    size: A4 landscape;
+    margin: 8mm 10mm;
+  }
+
+  @media print {
+    html, body {
+      background: #FFFFFF !important;
+      color: #000000 !important;
+      font-size: 11pt;
+    }
+    .page {
+      width: 100% !important;
+      max-width: none !important;
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+    .title-card {
+      box-shadow: none !important;
+      background: var(--navy) !important;
+      color: #FFFFFF !important;
+      border-radius: 12px !important;
+      padding: 16px 20px !important;
+      break-inside: avoid;
+    }
+    .title-card h1 {
+      font-size: 20pt !important;
+    }
+    .title-card .title-sub {
+      font-size: 13pt !important;
+    }
+    .search-section, .search-filters, .search-status {
+      display: none !important;
+    }
+    .tree {
+      padding-top: 20px !important;
+    }
+    .tree::before, .branches::before, .branch::before, .branch-card::before {
+      display: none !important;
+    }
+    .branches {
+      grid-template-columns: repeat(3, 1fr) !important;
+      gap: 16px 12px !important;
+    }
+    .branch-card, .card, .sub {
+      break-inside: avoid !important;
+      box-shadow: none !important;
+      border: 1px solid #CBD5E1 !important;
+    }
+    .main-drive-btn {
+      display: none !important;
+    }
+    .site-footer {
+      margin-top: 20px !important;
+      padding: 10px 0 !important;
+    }
+  }
 </style>
 </head>
 <body>
-<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
-<symbol id="i-root" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
-<symbol id="i-wave" viewBox="0 0 24 24"><path d="M2 12c3-7 5 7 8 0s5-7 8 0 3 7 4 0"/><path d="M4 5v14M20 5v14"/></symbol>
-<symbol id="i-logic" viewBox="0 0 24 24"><path d="M3 5h7v6H3zM14 5h7v6h-7zM3 15h7v6H3zM14 15h7v6h-7z"/><path d="M10 8h4M17 11v4M10 18h4"/></symbol>
-<symbol id="i-coffee" viewBox="0 0 24 24"><path d="M5 8h11v6a5 5 0 0 1-5 5H10a5 5 0 0 1-5-5z"/><path d="M16 10h2a3 3 0 0 1 0 6h-2M8 4c0 1 1 1 1 2M12 4c0 1 1 1 1 2"/></symbol>
-<symbol id="i-circuit" viewBox="0 0 24 24"><path d="M4 5h5v5H4zM15 14h5v5h-5zM9 7h6v10H9z"/><path d="M6.5 10v4M17.5 10v4"/></symbol>
-<symbol id="i-math" viewBox="0 0 24 24"><path d="M4 5h16M4 19h16M7 8l3 4-3 4M14 8h4M14 16h4"/></symbol>
-<symbol id="i-human" viewBox="0 0 24 24"><circle cx="12" cy="7" r="3"/><path d="M6 21v-2a6 6 0 0 1 12 0v2M3 13h18"/></symbol>
-<symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
-<symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></symbol>
-</defs></svg>
+
+<!-- SVG Icon Sprite -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <!-- Subject Brand Icons -->
+    <symbol id="i-wave" viewBox="0 0 24 24"><path d="M2 12c3-7 5 7 8 0s5-7 8 0 3 7 4 0" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 5v14M20 5v14" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+    <symbol id="i-logic" viewBox="0 0 24 24"><path d="M3 5h7v6H3zM14 5h7v6h-7zM3 15h7v6H3zM14 15h7v6h-7z" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10 8h4M17 11v4M10 18h4" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-coffee" viewBox="0 0 24 24"><path d="M5 8h11v6a5 5 0 0 1-5 5H10a5 5 0 0 1-5-5z" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 10h2a3 3 0 0 1 0 6h-2M8 4c0 1 1 1 1 2M12 4c0 1 1 1 1 2" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-circuit" viewBox="0 0 24 24"><path d="M4 5h5v5H4zM15 14h5v5h-5zM9 7h6v10H9z" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M6.5 10v4M17.5 10v4" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-math" viewBox="0 0 24 24"><path d="M4 5h16M4 19h16M7 8l3 4-3 4M14 8h4M14 16h4" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-human" viewBox="0 0 24 24"><circle cx="12" cy="7" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M6 21v-2a6 6 0 0 1 12 0v2M3 13h18" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+
+    <!-- UI & Resource Icons -->
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-drive" viewBox="0 0 24 24"><path d="M12 3l8 14H4l8-14z" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 17l4-7 4 7" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-youtube" viewBox="0 0 24 24"><rect x="2.5" y="5" width="19" height="14" rx="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10 9l5 3-5 3z" fill="currentColor"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M2 4h6a4 4 0 0 1 4 4v12a3 3 0 0 0-3-3H2z" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M22 4h-6a4 4 0 0 0-4 4v12a3 3 0 0 1 3-3h7z" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-lecture" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 15v5M8 21h8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M7 11l3-3 3 2 4-4" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5z" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3 13l9 5 9-5" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-flask" viewBox="0 0 24 24"><path d="M9 3h6M10 3v6L4.5 19a1.5 1.5 0 0 0 1.3 2.2h12.4a1.5 1.5 0 0 0 1.3-2.2L14 9V3M7.5 15h9" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-clipboard" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="9" y="3" width="6" height="4" rx="1" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M9 12h6M9 16h4" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-examcheck" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M14 3v5h5M9 14l2 2 4-4" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-award" viewBox="0 0 24 24"><circle cx="12" cy="9" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8.5 14L7 21l5-3 5 3-1.5-7" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-external" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M15 3h6v6M10 14L21 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.35-4.35" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  </defs>
+</svg>
+
 <main class="page">
-<header class="title-card"><h1><a href="https://drive.google.com/drive/folders/1bzeSTyWumsJ3hBC5F2vBu9RWhMymVOnP" target="_blank" rel="noopener">📚 دليل الماتريال المجمعة<br>الفرقة الثانية — هندسة إلكترونيات<br>الترم الأول</a></h1><div class="title-rule"></div><p class="author">كل اللي يخص الترم متجمع في مكان واحد</p><span class="hint">اضغط على اسم المجلد للتوجه إلى المسار مباشرة</span></header>
-<div class="tree"><div class="branches">
-<section class="branch"><div class="branch-card"><span class="num">1</span><div class="branch-text"><span class="branch-label">المادة الأولى:</span><a class="folder branch-name" href="https://drive.google.com/drive/folders/1ObIiM7q7myJtpnN-LddSD06MQeb66fkB" target="_blank">المجالات الكهرومغناطيسية <span class="ltr">(EMF)</span></a><p class="branch-sub">د. رجب السحيمى — الماتريال والشيتات والامتحانات</p></div><span class="ico"><svg><use href="#i-wave"/></svg></span></div><div class="branch-body"><div class="stack"><article class="card linked"><div class="card-head"><span class="ico"><svg><use href="#i-folder"/></svg></span><a class="folder" href="https://drive.google.com/drive/folders/11uJnVqIpCF3Wy2VzAVCDoJ6vnZ9dacFW" target="_blank">material</a></div><p class="desc">ملخص المحاضرات والسكاشن + أسئلة صح وغلط</p></article><article class="card linked"><div class="card-head"><span class="ico"><svg><use href="#i-folder"/></svg></span><a class="folder" href="https://drive.google.com/drive/folders/1mXY9NP1Sq3pKexiRKuO17ZIRJ8_qFqmO" target="_blank">sheets</a></div><p class="desc">شيتات 1 إلى 5 كاملة بالحلول</p></article><article class="card linked"><div class="card-head"><span class="ico"><svg><use href="#i-folder"/></svg></span><a class="folder" href="https://drive.google.com/drive/folders/18rInBwg3HI83y5wf_RTmvjb3Qtp9UrDk" target="_blank">Exams</a></div><p class="desc">حلول الميدترم + كويز 1 و 2</p></article></div></div></section>
-<section class="branch"><div class="branch-card"><span class="num">2</span><div class="branch-text"><span class="branch-label">المادة الثانية:</span><a class="folder branch-name" href="https://drive.google.com/drive/folders/1A42n3hBNRAqkXXciBXN81FJXt9XaIe-n" target="_blank">الدوائر المنطقية <span class="ltr">(Logic Circuits)</span></a><p class="branch-sub">د. محمد عبد الرحمن — المراجعات والامتحانات والقسم الخاص</p></div><span class="ico"><svg><use href="#i-logic"/></svg></span></div><div class="branch-body"><div class="stack"><article class="card linked"><div class="card-head"><span class="ico"><svg><use href="#i-folder"/></svg></span><a class="folder" href="https://drive.google.com/drive/folders/1TTcGX2e0Sn4D0pQdOfKmJcORBtVfxkMM" target="_blank">Logic</a></div><p class="desc">مراجعات وحلول الفاينل والميدترم والكويزات</p></article><article class="card linked"><div class="card-head"><span class="ico"><svg><use href="#i-folder"/></svg></span><a class="folder" href="https://drive.google.com/drive/folders/17l2TgNnU401gMaJbHr42JlQ4Ct_nUf_s" target="_blank">Logic (Second)</a></div><p class="desc">شروحات <span class="ltr">Flip-Flop</span> + أسئلة خاصة</p></article></div></div></section>
-<section class="branch"><div class="branch-card"><span class="num">3</span><div class="branch-text"><span class="branch-label">المادة الثالثة:</span><a class="folder branch-name" href="https://drive.google.com/drive/folders/1Ct0U9Ia1zM9vhcfZDEkI_ZJCKvdEQ5iY" target="_blank">البرمجة كائنية التوجه <span class="ltr">(OOP Java)</span></a><p class="branch-sub">د. هالة الحديدي</p></div><span class="ico"><svg><use href="#i-coffee"/></svg></span></div><div class="branch-body"><div class="stack"><article class="card linked"><div class="card-head"><span class="ico"><svg><use href="#i-folder"/></svg></span><a class="folder" href="https://drive.google.com/drive/folders/13bO7QHasyGPt26V1WB4fJf_3-gRRZL8b" target="_blank">material H.I.E</a></div><p class="desc">الماتريال كاملة: محاضرات 1-6 + سكاشن + لابات + شيتات وتكليفات</p></article><article class="card linked"><div class="card-head"><span class="ico"><svg><use href="#i-folder"/></svg></span><a class="folder" href="https://drive.google.com/drive/folders/1KtZs0T-kmfao_7h9MXSNIVPAUZ7F3pWE" target="_blank">other Material</a></div><p class="desc">بنك الامتحانات: فاينل وميدترم وكويزات</p></article><article class="card linked"><div class="card-head"><span class="ico"><svg><use href="#i-folder"/></svg></span><a class="folder" href="https://drive.google.com/drive/folders/1uSTPgb9TuprJLaFqRtCxDIxK7BC1r5Op" target="_blank">Youtube</a></div><p class="desc">ماتريال كورس Java للبشمهندس محمد الدسوقي على اليوتيوب</p><a class="playlist" href="https://youtube.com/playlist?list=PL1DUmTEdeA6K7rdxKiWJq6JIxTvHalY8f&amp;si=z8nmHaUdaqSRIdve" target="_blank" rel="noopener">▶ جزء الأساسيات — مراجعة أساسيات Java قبل OOP</a><a class="playlist" href="https://youtube.com/playlist?list=PL1DUmTEdeA6Icttz-O9C3RPRF8R8Px5vk&amp;si=-4a3rKLdl8YQXjPE" target="_blank" rel="noopener">▶ جزء الـ OOP — شرح مفاهيم OOP بالتدريج</a></article></div></div></section>
-<section class="branch"><div class="branch-card"><span class="num">4</span><div class="branch-text"><span class="branch-label">المادة الرابعة:</span><a class="folder branch-name" href="https://drive.google.com/drive/folders/10ZRjwWKBCa6XRPZrwcrTDIA3BtpYCJp4" target="_blank">تصميم الدوائر الكهربية <span class="ltr">(Electric Circuits)</span></a><p class="branch-sub">د. رمضان عبد العال</p></div><span class="ico"><svg><use href="#i-circuit"/></svg></span></div><div class="branch-body"><div class="stack"><article class="card linked"><div class="card-head"><span class="ico"><svg><use href="#i-folder"/></svg></span><a class="folder" href="https://drive.google.com/drive/folders/1s6QOcuNwfFiKIfHYpT2-llvKvNsEdSRz" target="_blank">الماتريال كاملة</a></div><p class="desc">مرجع <span class="ltr">EC</span> + حل امتحان الفاينل السابق + مسائل <span class="ltr">Laplace</span> هامة</p></article></div></div></section>
-<section class="branch"><div class="branch-card"><span class="num">5</span><div class="branch-text"><span class="branch-label">المادة الخامسة:</span><a class="folder branch-name" href="https://drive.google.com/drive/folders/1q-5GZESVNaLVWnpL3jke22sMvtBkkOLy" target="_blank">الرياضيات الهندسية 5 <span class="ltr">(Math 5)</span></a><p class="branch-sub">د. حموده أبو الدهب</p></div><span class="ico"><svg><use href="#i-math"/></svg></span></div><div class="branch-body"><div class="stack"><article class="card linked"><div class="card-head"><span class="ico"><svg><use href="#i-folder"/></svg></span><a class="folder" href="https://drive.google.com/drive/folders/12Pq4iel8ZXYSNp_5lTGY9YOoKPx-QMM6" target="_blank">الماتريال كاملة</a></div><p class="desc">مذكرة <span class="ltr">Math 5</span> الشاملة + حلول امتحانات الفاينل السابقة</p></article></div></div></section>
-<section class="branch"><div class="branch-card"><span class="num">6</span><div class="branch-text"><span class="branch-label">المادة السادسة:</span><a class="folder branch-name" href="https://drive.google.com/drive/folders/1pNgXZpj_CrqV-EtfmDKtCy0hxF8Lb0bV" target="_blank">حقوق الإنسان وإنسانيات <span class="ltr">(Humanities)</span></a><p class="branch-sub">حقوق الإنسان وإنسانيات</p></div><span class="ico"><svg><use href="#i-human"/></svg></span></div><div class="branch-body"><div class="stack"><article class="card linked"><div class="card-head"><span class="ico"><svg><use href="#i-folder"/></svg></span><a class="folder" href="https://drive.google.com/drive/folders/19R7gJt3RUB0xcSvE_GN2m1cW8pyIA5_B" target="_blank">human rights</a></div><p class="desc">أسئلة بالحلول + عروض <span class="ltr">Presentations</span></p></article><article class="card linked"><div class="card-head"><span class="ico"><svg><use href="#i-folder"/></svg></span><a class="folder" href="https://drive.google.com/drive/folders/1m-ycL4YUAeZVb4uKraSlHHEadHiHmp8o" target="_blank">انسانيات</a></div><p class="desc">ملخص المادة + كتاب المنهج وعروض الهجرة — د. محمد اسماعيل</p></article></div></div></section>
-</div></div>
-<footer class="site-footer">
-  <div class="credit-badge">
-    Organized &amp; Compiled by <strong>Ahmed Elfalah</strong> &middot; 2026
+
+  <!-- ==================== Header ==================== -->
+  <header class="title-card">
+    <h1>📚 دليل الماتريال المجمعة<br><span class="title-sub">الفرقة الثانية — هندسة إلكترونيات — الترم الأول</span></h1>
+    <div class="title-rule"></div>
+    <p class="title-desc">بوابة وصول مركزية ومباشرة لكافة مراجع ومحاضرات وشيتات وامتحانات مواد الترم الأول على Google Drive و YouTube</p>
+    
+    <div class="header-actions">
+      <a class="main-drive-btn" href="https://drive.google.com/drive/folders/1bzeSTyWumsJ3hBC5F2vBu9RWhMymVOnP" target="_blank" rel="noopener noreferrer">
+        <svg class="btn-ico" aria-hidden="true"><use href="#i-drive"/></svg>
+        <span>فتح مجلد الترم الكامل على Google Drive</span>
+        <svg class="ext-ico" aria-hidden="true"><use href="#i-external"/></svg>
+      </a>
+      <span class="hint-chip">⚡ اضغط على أي مجلد أو كورس للانتقال للمسار الخارجي فوراً</span>
+    </div>
+  </header>
+
+  <!-- ==================== Smart Search ==================== -->
+  <section class="search-section" aria-label="أداة البحث السريع">
+    <div class="search-bar-wrapper">
+      <div class="search-icon-box" aria-hidden="true">
+        <svg><use href="#i-search"/></svg>
+      </div>
+      <input type="search" id="directory-search" class="search-input" placeholder="دوّر على مادة، دكتور، مجلد، شيت، فاينل... (عربي / English)" autocomplete="off" spellcheck="false" aria-label="بحث سريع في مجلدات وماتريال الدليل">
+      <button type="button" id="search-clear" class="search-clear-btn" aria-label="مسح البحث" title="مسح البحث">✕</button>
+      <kbd class="search-kbd" title="اختصار لوحة المفاتيح للبحث">Ctrl+K</kbd>
+    </div>
+
+    <!-- Quick filter tags -->
+    <div class="search-filters">
+      <span class="filter-label">تصفية سريعة:</span>
+      <button type="button" class="filter-tag active" data-filter="all">كل المواد</button>
+      <button type="button" class="filter-tag" data-filter="sheets">شيتات وحلول</button>
+      <button type="button" class="filter-tag" data-filter="exams">امتحانات وفاينل</button>
+      <button type="button" class="filter-tag" data-filter="lectures">محاضرات ومذكرات</button>
+      <button type="button" class="filter-tag" data-filter="youtube">فيديوهات يوتيوب</button>
+    </div>
+
+    <div class="search-status">
+      <span id="search-count-text">معروض 6 مواد دراسية</span>
+      <span id="search-hint-text">اكتب أي كلمة للفلترة الفورية</span>
+    </div>
+
+    <!-- Empty State -->
+    <div id="empty-state" class="empty-state" style="display: none;">
+      <div class="empty-emoji">😕</div>
+      <h3>مفيش نتيجة مطابقة لبحثك</h3>
+      <p>جرّب تبحث بكلمة تانية (مثال: شيت، فاينل، جافا، EMF، مراجعة)</p>
+      <button type="button" id="btn-reset-search" class="btn-reset">إظهار كل المواد</button>
+    </div>
+  </section>
+
+  <!-- ==================== Academic Subjects Tree ==================== -->
+  <div class="tree">
+    <div class="branches" id="directory-branches">
+
+      <!-- ==================== 1) EMF ==================== -->
+      <section class="branch" data-subject="emf المجالات الكهرومغناطيسية رجب السحيمى السحيمي">
+        <div class="branch-card linked">
+          <span class="num">1</span>
+          <div class="branch-text">
+            <span class="branch-label">المادة الأولى:</span>
+            <a class="branch-name" href="https://drive.google.com/drive/folders/1ObIiM7q7myJtpnN-LddSD06MQeb66fkB" target="_blank" rel="noopener noreferrer">
+              المجالات الكهرومغناطيسية <span class="ltr">(EMF)</span>
+            </a>
+            <p class="branch-sub">د. رجب السحيمى — الماتريال والشيتات والامتحانات</p>
+          </div>
+          <span class="ico" aria-hidden="true"><svg><use href="#i-wave"/></svg></span>
+        </div>
+
+        <div class="branch-body">
+          <div class="stack">
+            <!-- Card 1: material -->
+            <article class="card linked" data-card="material مذكرات محاضرات ملخص كشكول احمد الفلاح صح وغلط">
+              <div class="card-head">
+                <span class="ico" aria-hidden="true"><svg><use href="#i-folder"/></svg></span>
+                <a class="folder" href="https://drive.google.com/drive/folders/11uJnVqIpCF3Wy2VzAVCDoJ6vnZ9dacFW" target="_blank" rel="noopener noreferrer">
+                  <span>material</span>
+                  <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
+                </a>
+              </div>
+              <p class="desc">ملخص المحاضرات والسكاشن + أسئلة صح وغلط</p>
+              <ul class="items">
+                <li>كشكول المحاضرات والسكاشن بخط يد م/ أحمد الفلاح (98 MB)</li>
+                <li>بنك الأسئلة وتجميعات الامتحانات السابقة</li>
+              </ul>
+            </article>
+
+            <!-- Card 2: sheets -->
+            <article class="card linked" data-card="sheets شيتات حلول مسائل تيار مجال مغناطيسي">
+              <div class="card-head">
+                <span class="ico" aria-hidden="true"><svg><use href="#i-clipboard"/></svg></span>
+                <a class="folder" href="https://drive.google.com/drive/folders/1mXY9NP1Sq3pKexiRKuO17ZIRJ8_qFqmO" target="_blank" rel="noopener noreferrer">
+                  <span>sheets</span>
+                  <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
+                </a>
+              </div>
+              <p class="desc">شيتات 1 إلى 5 كاملة بالحلول</p>
+              <ul class="items">
+                <li>شيت 1، 2، 3 بحل م/ أحمد الفلاح</li>
+                <li>شيت 4 و 5 بحل م/ أحمد الفلاح</li>
+              </ul>
+            </article>
+
+            <!-- Card 3: Exams -->
+            <article class="card linked" data-card="exams امتحانات ميدترم كويز حلول 2025 2026">
+              <div class="card-head">
+                <span class="ico" aria-hidden="true"><svg><use href="#i-examcheck"/></svg></span>
+                <a class="folder" href="https://drive.google.com/drive/folders/18rInBwg3HI83y5wf_RTmvjb3Qtp9UrDk" target="_blank" rel="noopener noreferrer">
+                  <span>Exams</span>
+                  <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
+                </a>
+              </div>
+              <p class="desc">حلول الميدترم + كويز 1 و 2</p>
+              <ul class="items">
+                <li>حل امتحان الميدترم النموذجي</li>
+                <li>كويز 1 وكويز 2 لعام 2025-2026 بالحل</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== 2) Logic Circuits ==================== -->
+      <section class="branch" data-subject="logic circuits الدوائر المنطقية محمد عبد الرحمن عبدالرحمن flip flop">
+        <div class="branch-card linked">
+          <span class="num">2</span>
+          <div class="branch-text">
+            <span class="branch-label">المادة الثانية:</span>
+            <a class="branch-name" href="https://drive.google.com/drive/folders/1A42n3hBNRAqkXXciBXN81FJXt9XaIe-n" target="_blank" rel="noopener noreferrer">
+              الدوائر المنطقية <span class="ltr">(Logic Circuits)</span>
+            </a>
+            <p class="branch-sub">د. محمد عبد الرحمن — المراجعات والامتحانات والقسم الخاص</p>
+          </div>
+          <span class="ico" aria-hidden="true"><svg><use href="#i-logic"/></svg></span>
+        </div>
+
+        <div class="branch-body">
+          <div class="stack">
+            <!-- Card 1: Logic Circuits Organized Hub -->
+            <article class="card linked" data-card="logic organized منظم فاينل ميدترم كويز مراجعة سكاشن">
+              <div class="card-head">
+                <span class="ico" aria-hidden="true"><svg><use href="#i-award"/></svg></span>
+                <a class="folder" href="https://drive.google.com/drive/folders/1RPbkTtDUawNQq0Pm-Hu492Xr_PzEu5_t" target="_blank" rel="noopener noreferrer">
+                  <span>Logic_Circuits_Organized</span>
+                  <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
+                </a>
+              </div>
+              <p class="desc">⭐ الفولدر المنظم المعتمد للامتحانات والمراجعات</p>
+              <ul class="items">
+                <li>بنك امتحانات الميدترم (2022 حتى 2026 كاملة)</li>
+                <li>امتحانات الفاينل (2023-2024 و 2024-2025 بالحل)</li>
+                <li>مراجعة السكاشن 19 صفحة ومحاضرة 6 (MUX)</li>
+              </ul>
+            </article>
+
+            <!-- Card 2: Logic Original -->
+            <article class="card linked" data-card="logic فاينل ميدترم كويزات كشكول تطبيق">
+              <div class="card-head">
+                <span class="ico" aria-hidden="true"><svg><use href="#i-folder"/></svg></span>
+                <a class="folder" href="https://drive.google.com/drive/folders/1TTcGX2e0Sn4D0pQdOfKmJcORBtVfxkMM" target="_blank" rel="noopener noreferrer">
+                  <span>Logic</span>
+                  <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
+                </a>
+              </div>
+              <p class="desc">مراجعات وحلول الفاينل والميدترم والكويزات</p>
+              <ul class="items">
+                <li>نماذج إجابة الفاينل والميدترم والكويزات</li>
+                <li>مسائل التنفيذ ومسائل خاصة محلولة</li>
+              </ul>
+            </article>
+
+            <!-- Card 3: Logic (Second) -->
+            <article class="card linked" data-card="logic second flip flop قلابات دوائر تتابعية">
+              <div class="card-head">
+                <span class="ico" aria-hidden="true"><svg><use href="#i-layers"/></svg></span>
+                <a class="folder" href="https://drive.google.com/drive/folders/17l2TgNnU401gMaJbHr42JlQ4Ct_nUf_s" target="_blank" rel="noopener noreferrer">
+                  <span>Logic (Second)</span>
+                  <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
+                </a>
+              </div>
+              <p class="desc">شروحات <span class="ltr">Flip-Flop</span> + أسئلة خاصة</p>
+              <ul class="items">
+                <li>جداول ومخططات Flip-Flop والدوائر التتابعية</li>
+                <li>صور ومسائل امتحانات خاصة</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== 3) OOP Java ==================== -->
+      <section class="branch" data-subject="oop java برمجة كائنية جافا هالة الحديدي هاله الحديدى كلاس كائن وراثة ديسوقي">
+        <div class="branch-card linked">
+          <span class="num">3</span>
+          <div class="branch-text">
+            <span class="branch-label">المادة الثالثة:</span>
+            <a class="branch-name" href="https://drive.google.com/drive/folders/1Ct0U9Ia1zM9vhcfZDEkI_ZJCKvdEQ5iY" target="_blank" rel="noopener noreferrer">
+              البرمجة كائنية التوجه <span class="ltr">(OOP Java)</span>
+            </a>
+            <p class="branch-sub">د. هالة الحديدي</p>
+          </div>
+          <span class="ico" aria-hidden="true"><svg><use href="#i-coffee"/></svg></span>
+        </div>
+
+        <div class="branch-body">
+          <div class="stack">
+            <!-- Card 1: material H.I.E -->
+            <article class="card linked" data-card="material hie معهد محاضرات سكاشن لابات شيتات تكليفات ميدترم">
+              <div class="card-head">
+                <span class="ico" aria-hidden="true"><svg><use href="#i-folder"/></svg></span>
+                <a class="folder" href="https://drive.google.com/drive/folders/13bO7QHasyGPt26V1WB4fJf_3-gRRZL8b" target="_blank" rel="noopener noreferrer">
+                  <span>material H.I.E</span>
+                  <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
+                </a>
+              </div>
+              <p class="desc">الماتريال كاملة: محاضرات 1-6 + سكاشن + لابات + شيتات وتكليفات</p>
+              <ul class="items">
+                <li>المحاضرات كاملة: Review, Objects, Constructors, Inheritance, Polymorphism, GUI</li>
+                <li>لابات العملي + شيتات 1 إلى 4 وتكليفاتها بالحلول</li>
+                <li>ميدترم وكويزات المعهد + كتاب المرجع</li>
+              </ul>
+            </article>
+
+            <!-- Card 2: other Material -->
+            <article class="card linked" data-card="other material معهد دمياط فاينل ميدترم كويزات">
+              <div class="card-head">
+                <span class="ico" aria-hidden="true"><svg><use href="#i-examcheck"/></svg></span>
+                <a class="folder" href="https://drive.google.com/drive/folders/1KtZs0T-kmfao_7h9MXSNIVPAUZ7F3pWE" target="_blank" rel="noopener noreferrer">
+                  <span>other Material</span>
+                  <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
+                </a>
+              </div>
+              <p class="desc">بنك الامتحانات: فاينل وميدترم وكويزات</p>
+              <ul class="items">
+                <li>أرشيف امتحانات الفاينل السابقة لمعهد دمياط</li>
+                <li>نماذج إجابة الميدترم والكويزات 1 حتى 4</li>
+              </ul>
+            </article>
+
+            <!-- Card 3: Youtube -->
+            <article class="card linked" data-card="youtube كورس يوتيوب محمد الدسوقي اساسيات oop">
+              <div class="card-head">
+                <span class="ico ico-yt" aria-hidden="true"><svg><use href="#i-youtube"/></svg></span>
+                <a class="folder" href="https://drive.google.com/drive/folders/1uSTPgb9TuprJLaFqRtCxDIxK7BC1r5Op" target="_blank" rel="noopener noreferrer">
+                  <span>Youtube</span>
+                  <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
+                </a>
+              </div>
+              <p class="desc">ماتريال كورس Java للبشمهندس محمد الدسوقي على اليوتيوب</p>
+              
+              <a class="playlist" href="https://youtube.com/playlist?list=PL1DUmTEdeA6K7rdxKiWJq6JIxTvHalY8f&amp;si=z8nmHaUdaqSRIdve" target="_blank" rel="noopener noreferrer">
+                <span class="playlist-text">
+                  <svg class="yt-ico" aria-hidden="true"><use href="#i-youtube"/></svg>
+                  <span>▶ جزء الأساسيات — مراجعة أساسيات Java قبل OOP</span>
+                </span>
+                <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
+              </a>
+
+              <a class="playlist" href="https://youtube.com/playlist?list=PL1DUmTEdeA6Icttz-O9C3RPRF8R8Px5vk&amp;si=-4a3rKLdl8YQXjPE" target="_blank" rel="noopener noreferrer">
+                <span class="playlist-text">
+                  <svg class="yt-ico" aria-hidden="true"><use href="#i-youtube"/></svg>
+                  <span>▶ جزء الـ OOP — شرح مفاهيم OOP بالتدريج</span>
+                </span>
+                <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
+              </a>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== 4) Electric Circuits ==================== -->
+      <section class="branch" data-subject="electric circuits تصميم الدوائر الكهربية رمضان عبد العال عبدالعال ec laplace لابلاس شيتات فاينل">
+        <div class="branch-card linked">
+          <span class="num">4</span>
+          <div class="branch-text">
+            <span class="branch-label">المادة الرابعة:</span>
+            <a class="branch-name" href="https://drive.google.com/drive/folders/10ZRjwWKBCa6XRPZrwcrTDIA3BtpYCJp4" target="_blank" rel="noopener noreferrer">
+              تصميم الدوائر الكهربية <span class="ltr">(Electric Circuits)</span>
+            </a>
+            <p class="branch-sub">د. رمضان عبد العال</p>
+          </div>
+          <span class="ico" aria-hidden="true"><svg><use href="#i-circuit"/></svg></span>
+        </div>
+
+        <div class="branch-body">
+          <div class="stack">
+            <!-- Card 1: Main Material / Organized -->
+            <article class="card linked" data-card="الماتريال كاملة electric circle design مرجع كشكول مسائل laplace فاينل شيتات">
+              <div class="card-head">
+                <span class="ico" aria-hidden="true"><svg><use href="#i-folder"/></svg></span>
+                <a class="folder" href="https://drive.google.com/drive/folders/1s6QOcuNwfFiKIfHYpT2-llvKvNsEdSRz" target="_blank" rel="noopener noreferrer">
+                  <span>الماتريال كاملة</span>
+                  <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
+                </a>
+              </div>
+              <p class="desc">مرجع <span class="ltr">EC</span> + حل امتحان الفاينل السابق + مسائل <span class="ltr">Laplace</span> هامة</p>
+              
+              <!-- Sub-folder 1: Lectures & Revision -->
+              <div class="sub linked">
+                <div class="card-head">
+                  <span class="ico" aria-hidden="true"><svg><use href="#i-book"/></svg></span>
+                  <a class="folder" href="https://drive.google.com/drive/folders/16IIH4amu633mV6lHNLNFiixv8TrGPfLu" target="_blank" rel="noopener noreferrer">
+                    <span>Lectures &amp; Revision</span>
+                    <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
+                  </a>
+                </div>
+                <ul class="items">
+                  <li>كتاب المرجع الشامل للدوائر (<bdi dir="ltr">Electrical Circuit.pdf</bdi>)</li>
+                  <li>كشكول مسائل وتطبيقات التصميم المهمة (30 صفحة)</li>
+                  <li>مسائل وتطبيقات تحويلات لابلاس (10 صفحات)</li>
+                </ul>
+              </div>
+
+              <!-- Sub-folder 2: Sheets -->
+              <div class="sub linked">
+                <div class="card-head">
+                  <span class="ico" aria-hidden="true"><svg><use href="#i-clipboard"/></svg></span>
+                  <a class="folder" href="https://drive.google.com/drive/folders/1l74TmM8vav-BsMeFmG-G-gm7eUJpRvVy" target="_blank" rel="noopener noreferrer">
+                    <span>Sheets</span>
+                    <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
+                  </a>
+                </div>
+                <ul class="items">
+                  <li>شيتات 1 إلى 4 كاملة بنماذج الحل</li>
+                </ul>
+              </div>
+
+              <!-- Sub-folder 3: Exams -->
+              <div class="sub linked">
+                <div class="card-head">
+                  <span class="ico" aria-hidden="true"><svg><use href="#i-examcheck"/></svg></span>
+                  <a class="folder" href="https://drive.google.com/drive/folders/1LIXvVHZ5F0_QFWftcqRgaBaNtAsFXm23" target="_blank" rel="noopener noreferrer">
+                    <span>Exams</span>
+                    <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
+                  </a>
+                </div>
+                <ul class="items">
+                  <li>أسئلة وحل فاينل 2024-2025 (14 صفحة) + الميدترم</li>
+                </ul>
+              </div>
+
+              <!-- Sub-folder 4: Youtube Guide -->
+              <div class="sub linked">
+                <div class="card-head">
+                  <span class="ico ico-yt" aria-hidden="true"><svg><use href="#i-youtube"/></svg></span>
+                  <a class="folder" href="https://drive.google.com/drive/folders/1dRORKjuodtVupbHBbJWyjTJ7gODwW8el" target="_blank" rel="noopener noreferrer">
+                    <span>Youtube</span>
+                    <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
+                  </a>
+                </div>
+                <ul class="items">
+                  <li>دليل وتنبيهات محاضرات الفيديو (المقرر والملغي)</li>
+                </ul>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== 5) Math 5 ==================== -->
+      <section class="branch" data-subject="math 5 الرياضيات الهندسية حموده ابو الدهب ابوالدهب تفاضلية لابلاس حلول فاينل">
+        <div class="branch-card linked">
+          <span class="num">5</span>
+          <div class="branch-text">
+            <span class="branch-label">المادة الخامسة:</span>
+            <a class="branch-name" href="https://drive.google.com/drive/folders/1q-5GZESVNaLVWnpL3jke22sMvtBkkOLy" target="_blank" rel="noopener noreferrer">
+              الرياضيات الهندسية 5 <span class="ltr">(Math 5)</span>
+            </a>
+            <p class="branch-sub">د. حموده أبو الدهب</p>
+          </div>
+          <span class="ico" aria-hidden="true"><svg><use href="#i-math"/></svg></span>
+        </div>
+
+        <div class="branch-body">
+          <div class="stack">
+            <!-- Card 1: Math 5 Material -->
+            <article class="card linked" data-card="math 5 الماتريال كاملة مذكرة فاينل مسائل محلولة">
+              <div class="card-head">
+                <span class="ico" aria-hidden="true"><svg><use href="#i-folder"/></svg></span>
+                <a class="folder" href="https://drive.google.com/drive/folders/12Pq4iel8ZXYSNp_5lTGY9YOoKPx-QMM6" target="_blank" rel="noopener noreferrer">
+                  <span>الماتريال كاملة</span>
+                  <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
+                </a>
+              </div>
+              <p class="desc">مذكرة <span class="ltr">Math 5</span> الشاملة + حلول امتحانات الفاينل السابقة</p>
+              <ul class="items">
+                <li>مذكرة المنهج الشاملة لمقرر Math 5 (16 MB)</li>
+                <li>حل امتحان الفاينل السابق كاملاً</li>
+                <li>حلول وتدريبات باقي أسئلة الامتحانات</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== 6) Humanities ==================== -->
+      <section class="branch" data-subject="humanities حقوق الإنسان انسان إنسانيات انسانيات محمد اسماعيل مناخ هجرة بريزنتيشن">
+        <div class="branch-card linked">
+          <span class="num">6</span>
+          <div class="branch-text">
+            <span class="branch-label">المادة السادسة:</span>
+            <a class="branch-name" href="https://drive.google.com/drive/folders/1pNgXZpj_CrqV-EtfmDKtCy0hxF8Lb0bV" target="_blank" rel="noopener noreferrer">
+              حقوق الإنسان وإنسانيات <span class="ltr">(Humanities)</span>
+            </a>
+            <p class="branch-sub">حقوق الإنسان وإنسانيات</p>
+          </div>
+          <span class="ico" aria-hidden="true"><svg><use href="#i-human"/></svg></span>
+        </div>
+
+        <div class="branch-body">
+          <div class="stack">
+            <!-- Card 1: human rights -->
+            <article class="card linked" data-card="human rights حقوق انسان بريزنتيشن اسئلة امم متحدة">
+              <div class="card-head">
+                <span class="ico" aria-hidden="true"><svg><use href="#i-folder"/></svg></span>
+                <a class="folder" href="https://drive.google.com/drive/folders/19R7gJt3RUB0xcSvE_GN2m1cW8pyIA5_B" target="_blank" rel="noopener noreferrer">
+                  <span>human rights</span>
+                  <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
+                </a>
+              </div>
+              <p class="desc">أسئلة بالحلول + عروض <span class="ltr">Presentations</span></p>
+              <ul class="items">
+                <li>عروض الـ Presentations التسعة كاملة</li>
+                <li>بنك أسئلة حقوق الإنسان مع الإجابات النموذجية</li>
+                <li>ملخص منظومة الأمم المتحدة</li>
+              </ul>
+            </article>
+
+            <!-- Card 2: انسانيات -->
+            <article class="card linked" data-card="انسانيات محمد اسماعيل ملخص كتاب منهج هجرة احمد الفلاح">
+              <div class="card-head">
+                <span class="ico" aria-hidden="true"><svg><use href="#i-folder"/></svg></span>
+                <a class="folder" href="https://drive.google.com/drive/folders/1m-ycL4YUAeZVb4uKraSlHHEadHiHmp8o" target="_blank" rel="noopener noreferrer">
+                  <span>انسانيات</span>
+                  <svg class="ext-badge" aria-hidden="true"><use href="#i-external"/></svg>
+                </a>
+              </div>
+              <p class="desc">ملخص المادة + كتاب المنهج وعروض الهجرة — د. محمد اسماعيل</p>
+              <ul class="items">
+                <li>كتاب منهج الإنسانيات المعتمد</li>
+                <li>ملخص إنسانيات إعداد م/ أحمد خالد الفلاح</li>
+                <li>عروض الهجرة 2025 وأسئلة البريزنتيشن</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+      </section>
+
+    </div>
   </div>
-</footer>
-</main></body></html>
+
+  <!-- ==================== Footer ==================== -->
+  <footer class="site-footer">
+    <div class="credit-badge">
+      Organized &amp; Compiled by <strong>Ahmed Elfalah</strong> &middot; 2026
+    </div>
+  </footer>
+
+</main>
+
+<!-- ==================== Client-Side Instant Search Script ==================== -->
+<script>
+(function() {
+  const searchInput = document.getElementById('directory-search');
+  const clearBtn = document.getElementById('search-clear');
+  const resetBtn = document.getElementById('btn-reset-search');
+  const countText = document.getElementById('search-count-text');
+  const emptyState = document.getElementById('empty-state');
+  const branchesContainer = document.getElementById('directory-branches');
+  const branches = Array.from(document.querySelectorAll('.branch'));
+  const filterTags = Array.from(document.querySelectorAll('.filter-tag'));
+
+  // Arabic normalization
+  function normalizeText(str) {
+    if (!str) return '';
+    return str
+      .toLowerCase()
+      .replace(/[\u064B-\u065F\u0670]/g, '') // Tashkeel
+      .replace(/[أإآٱ]/g, 'ا')                  // Alef
+      .replace(/ة/g, 'ه')                       // Taa Marbuta
+      .replace(/[يى]/g, 'ي')                    // Yaa
+      .replace(/\u0640/g, '')                   // Tatweel
+      .replace(/\s+/g, ' ')                     // Whitespace
+      .trim();
+  }
+
+  // Filter logic
+  function performFilter(rawQuery, activeCategory) {
+    const q = normalizeText(rawQuery);
+    const tokens = q.split(' ').filter(Boolean);
+    let visibleBranchCount = 0;
+
+    clearBtn.classList.toggle('active', rawQuery.length > 0);
+
+    branches.forEach(branch => {
+      const subjectText = normalizeText(branch.getAttribute('data-subject') || '') + ' ' + normalizeText(branch.textContent || '');
+      const cards = Array.from(branch.querySelectorAll('.card'));
+      let branchHasMatch = false;
+
+      // Check category tag filter first
+      let categoryMatch = true;
+      if (activeCategory && activeCategory !== 'all') {
+        if (activeCategory === 'sheets') {
+          categoryMatch = /شيت|sheet/i.test(subjectText);
+        } else if (activeCategory === 'exams') {
+          categoryMatch = /امتحان|فاينل|ميدترم|كويز|exam|final|midterm|quiz/i.test(subjectText);
+        } else if (activeCategory === 'lectures') {
+          categoryMatch = /محاضر|مذكر|سكشن|كشكول|lecture|material|revision/i.test(subjectText);
+        } else if (activeCategory === 'youtube') {
+          categoryMatch = /يوتيوب|فيديو|youtube|playlist/i.test(subjectText);
+        }
+      }
+
+      if (!categoryMatch) {
+        branch.classList.add('hidden');
+        return;
+      }
+
+      // If no query string, show branch
+      if (tokens.length === 0) {
+        branch.classList.remove('hidden');
+        cards.forEach(card => card.style.display = '');
+        visibleBranchCount++;
+        return;
+      }
+
+      // Match query tokens
+      cards.forEach(card => {
+        const cardText = normalizeText(card.getAttribute('data-card') || '') + ' ' + normalizeText(card.textContent || '');
+        const cardMatches = tokens.every(token => cardText.includes(token));
+        
+        if (cardMatches) {
+          card.style.display = '';
+          branchHasMatch = true;
+        } else {
+          // If the subject header itself matches all tokens, keep all cards visible
+          const subjectHeaderMatches = tokens.every(token => subjectText.includes(token));
+          if (subjectHeaderMatches) {
+            card.style.display = '';
+            branchHasMatch = true;
+          } else {
+            card.style.display = 'none';
+          }
+        }
+      });
+
+      if (branchHasMatch) {
+        branch.classList.remove('hidden');
+        visibleBranchCount++;
+      } else {
+        branch.classList.add('hidden');
+      }
+    });
+
+    // Update status text and empty state
+    if (visibleBranchCount === 0) {
+      emptyState.style.display = 'block';
+      branchesContainer.style.display = 'none';
+      countText.textContent = 'لا توجد نتائج مطابقة';
+    } else {
+      emptyState.style.display = 'none';
+      branchesContainer.style.display = 'grid';
+      if (tokens.length > 0 || (activeCategory && activeCategory !== 'all')) {
+        countText.textContent = `تم العثور على ${visibleBranchCount} مواد مطابقة`;
+      } else {
+        countText.textContent = 'معروض 6 مواد دراسية';
+      }
+    }
+  }
+
+  // Get active category
+  function getActiveCategory() {
+    const active = document.querySelector('.filter-tag.active');
+    return active ? active.getAttribute('data-filter') : 'all';
+  }
+
+  // Event Listeners
+  searchInput.addEventListener('input', function() {
+    performFilter(this.value, getActiveCategory());
+  });
+
+  clearBtn.addEventListener('click', function() {
+    searchInput.value = '';
+    searchInput.focus();
+    performFilter('', getActiveCategory());
+  });
+
+  resetBtn.addEventListener('click', function() {
+    searchInput.value = '';
+    filterTags.forEach(t => t.classList.remove('active'));
+    document.querySelector('[data-filter="all"]').classList.add('active');
+    performFilter('', 'all');
+    searchInput.focus();
+  });
+
+  // Filter tags click
+  filterTags.forEach(tag => {
+    tag.addEventListener('click', function() {
+      filterTags.forEach(t => t.classList.remove('active'));
+      this.classList.add('active');
+      performFilter(searchInput.value, this.getAttribute('data-filter'));
+    });
+  });
+
+  // Keyboard Shortcuts (Ctrl+K or '/' to focus search, Esc to clear)
+  document.addEventListener('keydown', function(e) {
+    if ((e.ctrlKey && e.key.toLowerCase() === 'k') || (e.key === '/' && document.activeElement !== searchInput)) {
+      e.preventDefault();
+      searchInput.focus();
+      searchInput.select();
+    } else if (e.key === 'Escape' && document.activeElement === searchInput) {
+      if (searchInput.value) {
+        searchInput.value = '';
+        performFilter('', getActiveCategory());
+      } else {
+        searchInput.blur();
+      }
+    }
+  });
+
+})();
+</script>
+
+</body>
+</html>
