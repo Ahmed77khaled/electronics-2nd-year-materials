@@ -1,66 +1,47 @@
 /**
- * Student Telemetry & Tracking Module (Vanilla JavaScript) - Secure RPC Architecture
- * Electronics 2nd Year Materials Portal
- * 
- * Complies with 002_secure_tracking_rpcs.sql:
- * - All events routed exclusively through secure RPCs (track_portal_event)
- * - Strict allowlist: Only allowed properties (resource_type, filter_name, search_length, source)
- * - Active Time Protection: Heartbeat pauses when tab loses focus or user switches to Drive/YouTube
- * - Safe Identity: Never fakes student identities (user_id is null for unauthenticated guests)
- * - Deduplication: Prevents double-counting from multiple clicks or duplicate listeners
- * - Non-blocking: External links open normally without interference
+ * Student Telemetry & Tracking Module - Secure Supabase RPC Architecture.
+ * A database session starts on the first authenticated user interaction.
+ * It ends when the tab is left, hidden, or unloaded; hidden/idle time is not credited.
  */
-
 (function(root) {
   'use strict';
 
-  // Prevent multiple initializations
-  if (root.__PORTAL_TRACKER_INITIALIZED__) {
-    return;
-  }
+  if (root.__PORTAL_TRACKER_INITIALIZED__) return;
   root.__PORTAL_TRACKER_INITIALIZED__ = true;
 
-  // Ephemeral Client Session Token
   function getOrCreateClientSessionId() {
     var key = 'portal_telemetry_client_session_id';
-    var sid = null;
     try {
-      sid = sessionStorage.getItem(key);
-      if (!sid) {
-        sid = 'sess_' + 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-          var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
-          return v.toString(16);
-        });
-        sessionStorage.setItem(key, sid);
-      }
-    } catch (e) {
-      sid = 'sess_ephemeral_' + Date.now();
+      var value = sessionStorage.getItem(key);
+      if (value) return value;
+      value = 'client_' + 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        var r = Math.random() * 16 | 0;
+        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+      });
+      sessionStorage.setItem(key, value);
+      return value;
+    } catch (err) {
+      return 'client_ephemeral_' + Date.now();
     }
-    return sid;
   }
 
   var clientSessionId = getOrCreateClientSessionId();
-  var recentClicks = {}; // Debounce click cache: { resourceId: timestamp }
+  var databaseSessionId = null;
+  var sessionStartPromise = null;
+  var sessionStartGeneration = -1;
+  var lifecycleGeneration = 0;
+  var pendingPauseTimer = null;
+  var pendingTrackingWrites = 0;
+  var recentClicks = {};
   var lastSearchQuery = '';
   var searchTimer = null;
   var currentCategory = 'all';
-
-  // Active Attention Tracking (Protects against crediting Drive/YouTube time)
-  var lastInteractionTime = Date.now();
+  var lastInteractionTime = 0;
   var heartbeatInterval = null;
-  var IDLE_TIMEOUT_MS = 45000; // 45 seconds idle threshold
+  var IDLE_TIMEOUT_MS = 45000;
+  var PAUSE_GRACE_MS = 250;
+  var MAX_TRACKING_DRAIN_MS = 1500;
 
-  function markUserActive() {
-    lastInteractionTime = Date.now();
-  }
-
-  if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
-    ['mousedown', 'keydown', 'scroll', 'touchstart'].forEach(function(evt) {
-      window.addEventListener(evt, markUserActive, { passive: true });
-    });
-  }
-
-  // Course Slug Mapping
   var SUBJECT_TO_COURSE = {
     'SUB_01_EMF': 'emf',
     'SUB_02_LOGIC': 'logic-circuits',
@@ -71,6 +52,22 @@
     'ROOT_DRIVE_TERM1': 'general-term-1'
   };
 
+  function isForeground() {
+    if (typeof document !== 'undefined') {
+      if (document.visibilityState && document.visibilityState !== 'visible') return false;
+      if (typeof document.hasFocus === 'function' && !document.hasFocus()) return false;
+    }
+    return true;
+  }
+
+  function isUuid(value) {
+    if (root.SupabaseBridge && typeof root.SupabaseBridge.isUuid === 'function') {
+      return root.SupabaseBridge.isUuid(value);
+    }
+    return typeof value === 'string' &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+  }
+
   function resolveResource(resourceId) {
     if (root.ResourceRegistry && typeof root.ResourceRegistry.getResourceById === 'function') {
       return root.ResourceRegistry.getResourceById(resourceId);
@@ -78,113 +75,256 @@
     return null;
   }
 
-  function resolveCourseSlug(resourceId, resData) {
-    if (resData && resData.subject) {
-      return SUBJECT_TO_COURSE[resData.subject] || resData.subject;
+  function resolveCourseSlug(resourceId, resourceData) {
+    if (resourceData && resourceData.subject) {
+      return SUBJECT_TO_COURSE[resourceData.subject] || resourceData.subject;
     }
-    for (var subKey in SUBJECT_TO_COURSE) {
-      if (resourceId.indexOf(subKey) === 0) {
-        return SUBJECT_TO_COURSE[subKey];
-      }
+    for (var subjectKey in SUBJECT_TO_COURSE) {
+      if (resourceId.indexOf(subjectKey) === 0) return SUBJECT_TO_COURSE[subjectKey];
     }
     return 'general-term-1';
   }
 
-  function mapDbResourceType(resType, href) {
-    if (resType === 'playlist' || (href && href.indexOf('youtube.com') !== -1)) return 'youtube';
-    if (['root', 'subject', 'card', 'subfolder'].indexOf(resType) !== -1) return 'folder';
+  function mapDbResourceType(resourceType, href) {
+    if (resourceType === 'playlist' || (href && href.indexOf('youtube.com') !== -1)) return 'youtube';
+    if (['root', 'subject', 'card', 'subfolder'].indexOf(resourceType) !== -1) return 'folder';
     return 'drive';
   }
 
+  function cancelPendingPause() {
+    if (pendingPauseTimer) {
+      clearTimeout(pendingPauseTimer);
+      pendingPauseTimer = null;
+    }
+  }
+
   /**
-   * Core telemetry dispatch function
+   * Only the Supabase Bridge may create/own the database session UUID.
+   * A pending start is shared by all callers to prevent duplicate sessions.
    */
-  async function dispatchEvent(eventName, payload) {
-    var user = null;
-    if (root.SupabaseBridge && typeof root.SupabaseBridge.getCurrentUser === 'function') {
-      try {
-        user = await root.SupabaseBridge.getCurrentUser();
-      } catch (e) {
-        user = null;
-      }
+  async function ensureDatabaseSession() {
+    var bridge = root.SupabaseBridge;
+    if (!bridge || typeof bridge.isReady !== 'function' || !bridge.isReady() ||
+        typeof bridge.startPortalSession !== 'function' || !isForeground()) {
+      return null;
     }
 
-    // Explicit constraint: Unauthenticated users are represented as null (never spoofed or faked)
-    var userId = (user && user.id) ? user.id : null;
+    if (databaseSessionId && isUuid(databaseSessionId)) return databaseSessionId;
+
+    if (sessionStartPromise) {
+      var pending = sessionStartPromise;
+      var pendingGeneration = sessionStartGeneration;
+      await pending;
+      if (pendingGeneration !== lifecycleGeneration) return null;
+      if (databaseSessionId && isUuid(databaseSessionId)) return databaseSessionId;
+    }
+
+    var generation = lifecycleGeneration;
+    sessionStartGeneration = generation;
+    var startPromise = bridge.startPortalSession(
+      (root.location && root.location.pathname) || '/'
+    ).then(function(sessionId) {
+      if (!isUuid(sessionId)) return null;
+
+      // If the page went hidden while the start RPC was in flight, close the
+      // just-created server session rather than leaving a live tab session.
+      if (generation !== lifecycleGeneration || !isForeground()) {
+        if (typeof bridge.endPortalSession === 'function') {
+          bridge.endPortalSession(sessionId).catch(function() {});
+        }
+        return null;
+      }
+
+      databaseSessionId = sessionId;
+      return databaseSessionId;
+    }).catch(function(err) {
+      var debug = root.APP_CONFIG && root.APP_CONFIG.analytics && root.APP_CONFIG.analytics.debug;
+      if (debug) console.warn('[PortalTracker] Session start failed:', err);
+      return null;
+    });
+
+    sessionStartPromise = startPromise;
+    try {
+      return await startPromise;
+    } finally {
+      if (sessionStartPromise === startPromise) {
+        sessionStartPromise = null;
+        sessionStartGeneration = -1;
+      }
+    }
+  }
+
+  function pauseDatabaseSession(reason) {
+    lifecycleGeneration++;
+    lastInteractionTime = 0;
+    var sessionId = databaseSessionId;
+    databaseSessionId = null;
+
+    if (sessionId && isUuid(sessionId) && root.SupabaseBridge &&
+        typeof root.SupabaseBridge.endPortalSession === 'function') {
+      root.SupabaseBridge.endPortalSession(sessionId).then(function() {
+        if (root.APP_CONFIG && root.APP_CONFIG.analytics && root.APP_CONFIG.analytics.debug) {
+          console.info('[PortalTracker] Database session closed:', reason || 'pause');
+        }
+      }).catch(function() {});
+    }
+  }
+
+  function schedulePause(reason) {
+    // Stop accruing time immediately. The short grace period allows a just-fired
+    // resource click RPC to finish before the session-end RPC closes the session.
+    lastInteractionTime = 0;
+    cancelPendingPause();
+    var scheduledAt = Date.now();
+
+    function attemptPause() {
+      if (isForeground()) {
+        pendingPauseTimer = null;
+        return;
+      }
+      if (pendingTrackingWrites > 0 && Date.now() - scheduledAt < MAX_TRACKING_DRAIN_MS) {
+        pendingPauseTimer = setTimeout(attemptPause, 100);
+        return;
+      }
+      pendingPauseTimer = null;
+      pauseDatabaseSession(reason || 'tab-hidden');
+    }
+
+    pendingPauseTimer = setTimeout(attemptPause, PAUSE_GRACE_MS);
+  }
+
+  function markUserActive() {
+    if (!isForeground()) return;
+    cancelPendingPause();
+
+    var now = Date.now();
+    var wasIdle = !lastInteractionTime || (now - lastInteractionTime) > IDLE_TIMEOUT_MS;
+
+    // A long idle gap ends the old session. A fresh user interaction starts a
+    // new session baseline, so idle wall-clock time is never credited.
+    if (wasIdle && databaseSessionId) {
+      pauseDatabaseSession('idle-resume');
+    }
+
+    lastInteractionTime = now;
+    ensureDatabaseSession().catch(function() {});
+  }
+
+  function dispatchLocalTelemetry(payload) {
+    if (typeof window === 'undefined' || typeof window.dispatchEvent !== 'function' ||
+        typeof CustomEvent === 'undefined') return;
+    window.dispatchEvent(new CustomEvent('analytics:telemetry_event', { detail: payload }));
+  }
+
+  async function dispatchEvent(eventName, payload) {
+    payload = payload || {};
+    var user = null;
+    var bridge = root.SupabaseBridge;
+
+    if (bridge && typeof bridge.getCurrentUser === 'function') {
+      try { user = await bridge.getCurrentUser(); } catch (err) { user = null; }
+    }
+
+    var userId = user && user.id ? user.id : null;
+    var dbSessionId = null;
+
+    if (userId && isForeground() && lastInteractionTime &&
+        (Date.now() - lastInteractionTime) <= IDLE_TIMEOUT_MS) {
+      dbSessionId = await ensureDatabaseSession();
+    }
 
     var fullPayload = {
       event_name: eventName,
       user_id: userId,
-      session_id: clientSessionId,
+      session_id: dbSessionId,
+      client_session_id: clientSessionId,
       course_id: payload.course_id || null,
       resource_id: payload.resource_id || null,
-      page_path: (typeof window !== 'undefined' && window.location && window.location.pathname) || '/',
+      page_path: (root.location && root.location.pathname) || '/',
       occurred_at: new Date().toISOString(),
       properties: payload.properties || {}
     };
 
     var debugMode = root.APP_CONFIG && root.APP_CONFIG.analytics && root.APP_CONFIG.analytics.debug;
-    if (debugMode) {
-      console.log('[Telemetry Dispatched]', fullPayload);
-    }
+    if (debugMode) console.log('[Telemetry Dispatched]', fullPayload);
+    dispatchLocalTelemetry(fullPayload);
 
-    // Local DOM event for testing and decoupled analytics
-    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
-      window.dispatchEvent(new CustomEvent('analytics:telemetry_event', { detail: fullPayload }));
-    }
-
-    // Send to Supabase via secure RPC track_portal_event (ONLY for authenticated students)
-    if (userId && root.SupabaseBridge && typeof root.SupabaseBridge.trackPortalEvent === 'function') {
-      root.SupabaseBridge.trackPortalEvent(fullPayload).catch(function(err) {
+    if (userId && dbSessionId && bridge && typeof bridge.trackPortalEvent === 'function') {
+      pendingTrackingWrites++;
+      try {
+        var result = await bridge.trackPortalEvent(fullPayload);
+        if (debugMode && result && !result.success) {
+          console.warn('[Telemetry Sync Warning]', result.reason || result.error || 'unknown');
+        }
+        return result;
+      } catch (err) {
         if (debugMode) console.warn('[Telemetry Sync Warning]', err);
-      });
+        return { success: false, error: err };
+      } finally {
+        pendingTrackingWrites = Math.max(0, pendingTrackingWrites - 1);
+      }
     }
+    return { success: false, reason: userId ? 'no_active_session' : 'unauthenticated_user_skipped' };
   }
 
-  /**
-   * Active Portal Heartbeat Routine
-   * STRICT SAFETY RULE: Only runs when the portal tab is focused, visible,
-   * and the user is not idle. Time spent outside the tab (e.g. browsing Drive
-   * or watching YouTube) is NEVER credited as portal active time.
-   */
   function setupHeartbeat() {
     if (heartbeatInterval) clearInterval(heartbeatInterval);
 
     heartbeatInterval = setInterval(function() {
-      // 1. Must have valid bridge
-      if (!root.SupabaseBridge || typeof root.SupabaseBridge.isReady !== 'function' || !root.SupabaseBridge.isReady()) {
-        return;
-      }
+      var bridge = root.SupabaseBridge;
+      if (!bridge || typeof bridge.isReady !== 'function' || !bridge.isReady()) return;
+      if (!isForeground()) return;
+      if (!databaseSessionId || !isUuid(databaseSessionId)) return;
+      if (!lastInteractionTime || (Date.now() - lastInteractionTime) > IDLE_TIMEOUT_MS) return;
+      if (typeof bridge.heartbeatPortalSession !== 'function') return;
 
-      // 2. Tab must be currently visible and focused
-      if (typeof document !== 'undefined') {
-        if (document.visibilityState !== 'visible' || (typeof document.hasFocus === 'function' && !document.hasFocus())) {
-          return; // Paused while user is in another tab (Drive/YouTube/Desktop)
-        }
-      }
-
-      // 3. User must not be idle in portal
-      var now = Date.now();
-      if ((now - lastInteractionTime) > IDLE_TIMEOUT_MS) {
-        return; // Paused due to inactivity
-      }
-
-      // Send heartbeat RPC
-      if (typeof root.SupabaseBridge.heartbeatPortalSession === 'function') {
-        root.SupabaseBridge.heartbeatPortalSession().catch(function() {});
-      }
+      bridge.heartbeatPortalSession(databaseSessionId).catch(function() {});
     }, 30000);
   }
 
-  /**
-   * 1. Click Listener (Delegated on document)
-   */
+  function setupLifecycleListeners() {
+    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+      window.addEventListener('blur', function() { schedulePause('window-blur'); });
+      window.addEventListener('focus', function() { cancelPendingPause(); });
+      window.addEventListener('pagehide', function() {
+        cancelPendingPause();
+        pauseDatabaseSession('pagehide');
+      });
+      window.addEventListener('beforeunload', function() {
+        cancelPendingPause();
+        pauseDatabaseSession('beforeunload');
+      });
+    }
+
+    if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+      document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'hidden') {
+          schedulePause('visibility-hidden');
+        } else {
+          cancelPendingPause();
+        }
+      });
+    }
+
+    if (root.SupabaseBridge && typeof root.SupabaseBridge.onAuthStateChange === 'function') {
+      root.SupabaseBridge.onAuthStateChange(function(event, session) {
+        if (event === 'SIGNED_OUT' || !session || !session.user) {
+          pauseDatabaseSession('signed-out');
+        } else {
+          // Do not auto-start time on auth refresh. The next user interaction
+          // creates the session baseline and demonstrates portal engagement.
+          lastInteractionTime = 0;
+        }
+      });
+    }
+  }
+
   function setupClickListener() {
     if (typeof document === 'undefined' || typeof document.addEventListener !== 'function') return;
 
-    document.addEventListener('click', function(e) {
-      if (!e.target || typeof e.target.closest !== 'function') return;
-      var target = e.target.closest('[data-resource-id]');
+    document.addEventListener('click', function(event) {
+      if (!event.target || typeof event.target.closest !== 'function') return;
+      var target = event.target.closest('[data-resource-id]');
       if (!target) return;
 
       var resourceId = target.getAttribute('data-resource-id');
@@ -193,88 +333,77 @@
 
       markUserActive();
 
-      // Debounce rapid multiple clicks on the exact same resource within 1000ms
       var now = Date.now();
-      var debounceMs = (root.APP_CONFIG && root.APP_CONFIG.analytics && root.APP_CONFIG.analytics.clickDebounceMs) || 1000;
-      if (recentClicks[resourceId] && (now - recentClicks[resourceId]) < debounceMs) {
-        return; // Ignore duplicate click
-      }
+      var debounceMs = (root.APP_CONFIG && root.APP_CONFIG.analytics &&
+        root.APP_CONFIG.analytics.clickDebounceMs) || 1000;
+      if (recentClicks[resourceId] && (now - recentClicks[resourceId]) < debounceMs) return;
       recentClicks[resourceId] = now;
 
-      var resData = resolveResource(resourceId);
-      var courseSlug = resolveCourseSlug(resourceId, resData);
-      var href = target.getAttribute('href') || (resData && resData.url) || null;
+      var resourceData = resolveResource(resourceId);
+      var courseSlug = resolveCourseSlug(resourceId, resourceData);
+      var href = target.getAttribute('href') || (resourceData && resourceData.url) || null;
 
-      // Classify Event Name
       var eventName = 'resource_click';
       var sourceTag = 'resource_chip';
-      if (resourceType === 'subject' || resourceId.indexOf('SUB_') === 0 && resourceId.indexOf('_MAIN') === -1 && resourceId.indexOf('_MAT') === -1) {
+      if (resourceType === 'subject' ||
+          (resourceId.indexOf('SUB_') === 0 && resourceId.indexOf('_MAIN') === -1 &&
+           resourceId.indexOf('_MAT') === -1)) {
         eventName = 'course_click';
         sourceTag = 'course_header';
       } else if (resourceType === 'playlist' || (href && href.indexOf('youtube.com') !== -1)) {
         eventName = 'youtube_click';
         sourceTag = 'youtube_link';
-      } else if (resourceType === 'card' || resourceType === 'subfolder' || resourceType === 'root' || (target.classList && (target.classList.contains('folder') || target.classList.contains('sub-drive-pill') || target.classList.contains('main-drive-btn')))) {
+      } else if (['card', 'subfolder', 'root'].indexOf(resourceType) !== -1 ||
+          (target.classList && (target.classList.contains('folder') ||
+           target.classList.contains('sub-drive-pill') || target.classList.contains('main-drive-btn')))) {
         eventName = 'folder_link_clicked';
         sourceTag = 'folder_link';
       }
 
-      var payload = {
+      dispatchEvent(eventName, {
         course_id: courseSlug,
         resource_id: resourceId,
         properties: {
           resource_type: mapDbResourceType(resourceType, href),
           source: sourceTag
         }
-      };
-
-      dispatchEvent(eventName, payload);
+      });
     }, true);
   }
 
-  /**
-   * 2. Search Listener (Debounced 1500ms)
-   */
   function setupSearchListener() {
     if (typeof document === 'undefined' || typeof document.getElementById !== 'function') return;
     var searchInput = document.getElementById('directory-search');
     if (!searchInput) return;
 
-    var debounceMs = (root.APP_CONFIG && root.APP_CONFIG.analytics && root.APP_CONFIG.analytics.searchDebounceMs) || 1500;
+    var debounceMs = (root.APP_CONFIG && root.APP_CONFIG.analytics &&
+      root.APP_CONFIG.analytics.searchDebounceMs) || 1500;
 
     searchInput.addEventListener('input', function() {
       markUserActive();
       var query = searchInput.value.trim();
-
       if (searchTimer) clearTimeout(searchTimer);
-
       searchTimer = setTimeout(function() {
         if (query.length >= 2 && query !== lastSearchQuery) {
           lastSearchQuery = query;
           dispatchEvent('search_used', {
             course_id: null,
             resource_id: null,
-            properties: {
-              search_length: query.length,
-              source: 'search_bar'
-            }
+            properties: { search_length: query.length, source: 'search_bar' }
           });
         }
       }, debounceMs);
     });
   }
 
-  /**
-   * 3. Filter Category Listener
-   */
   function setupFilterListener() {
     if (typeof document === 'undefined' || typeof document.querySelector !== 'function') return;
     var filterContainer = document.querySelector('.search-filters');
     if (!filterContainer) return;
 
-    filterContainer.addEventListener('click', function(e) {
-      if (!e.target || typeof e.target.closest !== 'function') return;
-      var tag = e.target.closest('.filter-tag');
+    filterContainer.addEventListener('click', function(event) {
+      if (!event.target || typeof event.target.closest !== 'function') return;
+      var tag = event.target.closest('.filter-tag');
       if (!tag) return;
 
       markUserActive();
@@ -284,20 +413,24 @@
         dispatchEvent('filter_changed', {
           course_id: null,
           resource_id: null,
-          properties: {
-            filter_name: selectedCategory,
-            source: 'quick_filter'
-          }
+          properties: { filter_name: selectedCategory, source: 'quick_filter' }
         });
       }
     });
   }
 
   function initListeners() {
+    setupLifecycleListeners();
     setupClickListener();
     setupSearchListener();
     setupFilterListener();
     setupHeartbeat();
+
+    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+      ['pointerdown', 'keydown', 'scroll', 'touchstart'].forEach(function(eventName) {
+        window.addEventListener(eventName, markUserActive, { passive: true });
+      });
+    }
   }
 
   if (typeof document !== 'undefined') {
@@ -311,9 +444,15 @@
   root.PortalTracker = {
     dispatchEvent: dispatchEvent,
     getClientSessionId: function() { return clientSessionId; },
+    getDatabaseSessionId: function() { return databaseSessionId; },
     getRecentClicks: function() { return recentClicks; },
     markUserActive: markUserActive,
-    stopHeartbeat: function() { if (heartbeatInterval) clearInterval(heartbeatInterval); }
+    pauseDatabaseSession: pauseDatabaseSession,
+    ensureDatabaseSession: ensureDatabaseSession,
+    stopHeartbeat: function() {
+      if (heartbeatInterval) clearInterval(heartbeatInterval);
+      heartbeatInterval = null;
+      cancelPendingPause();
+    }
   };
-
 })(typeof self !== 'undefined' ? self : this);
