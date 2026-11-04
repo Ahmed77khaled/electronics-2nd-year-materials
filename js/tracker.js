@@ -196,7 +196,7 @@
     return request;
   }
 
-  function pauseDatabaseSession(reason, interactionAtPause) {
+  function pauseDatabaseSession(reason, interactionAtPause, allowFinalHeartbeat) {
     lifecycleGeneration++;
     var finalInteractionTime = interactionAtPause || lastMeaningfulInteractionTime;
     lastInteractionTime = 0;
@@ -208,7 +208,10 @@
       return Promise.resolve(false);
     }
 
-    var mayFlushFinalInterval = finalInteractionTime &&
+    // Flush only on a confirmed transition away from the page/unload. A quick
+    // focus return followed by a later interaction must not credit the time
+    // spent in the background as active portal time.
+    var mayFlushFinalInterval = allowFinalHeartbeat === true && finalInteractionTime &&
       (Date.now() - finalInteractionTime) <= IDLE_TIMEOUT_MS;
     var finalHeartbeat = mayFlushFinalInterval ? sendHeartbeat(sessionId) : Promise.resolve(null);
     var closePromise = finalHeartbeat.then(function() {
@@ -247,7 +250,7 @@
         return;
       }
       pendingPauseTimer = null;
-      pauseDatabaseSession(reason || 'tab-hidden', interactionAtPause);
+      pauseDatabaseSession(reason || 'tab-hidden', interactionAtPause, true);
     }
 
     pendingPauseTimer = setTimeout(attemptPause, PAUSE_GRACE_MS);
@@ -366,11 +369,11 @@
       window.addEventListener('focus', function() { cancelPendingPause(); });
       window.addEventListener('pagehide', function() {
         cancelPendingPause();
-        pauseDatabaseSession('pagehide', lastInteractionTime);
+        pauseDatabaseSession('pagehide', lastInteractionTime, true);
       });
       window.addEventListener('beforeunload', function() {
         cancelPendingPause();
-        pauseDatabaseSession('beforeunload', lastInteractionTime);
+        pauseDatabaseSession('beforeunload', lastInteractionTime, true);
       });
     }
 
@@ -387,7 +390,7 @@
     if (root.SupabaseBridge && typeof root.SupabaseBridge.onAuthStateChange === 'function') {
       root.SupabaseBridge.onAuthStateChange(function(event, session) {
         if (event === 'SIGNED_OUT' || !session || !session.user) {
-          pauseDatabaseSession('signed-out');
+          pauseDatabaseSession('signed-out', lastInteractionTime, isForeground());
         } else {
           // Do not auto-start time on auth refresh. The next user interaction
           // creates the session baseline and demonstrates portal engagement.
