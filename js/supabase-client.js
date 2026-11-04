@@ -222,6 +222,13 @@
     // Only the user who owns the currently active tab session may end it.
     if (!activeDbSessionId || sid !== activeDbSessionId) return false;
     var ownerId = activeDbSessionUserId;
+    // Clear the local pointer synchronously before awaiting auth/network so a
+    // quick return to the portal cannot accidentally reuse a session being ended.
+    if (activeDbSessionId === sid) {
+      activeDbSessionId = null;
+      activeDbSessionUserId = null;
+    }
+
     var user = await getCurrentUser();
     if (!user || !ownerId || user.id !== ownerId) return false;
 
@@ -233,11 +240,6 @@
       return !!(result && result.data);
     } catch (err) {
       return false;
-    } finally {
-      if (activeDbSessionId === sid) {
-        activeDbSessionId = null;
-        activeDbSessionUserId = null;
-      }
     }
   }
 
