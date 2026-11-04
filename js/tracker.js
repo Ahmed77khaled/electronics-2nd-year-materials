@@ -176,16 +176,16 @@
     }
   }
 
-  function sendHeartbeat(sessionId) {
+  function sendHeartbeat(databaseSessionId) {
     var bridge = root.SupabaseBridge;
-    if (!sessionId || !isUuid(sessionId) || !bridge ||
+    if (!databaseSessionId || !isUuid(databaseSessionId) || !bridge ||
         typeof bridge.heartbeatPortalSession !== 'function') {
       return Promise.resolve(null);
     }
     if (heartbeatPromise) return heartbeatPromise;
 
     var request = Promise.resolve().then(function() {
-      return bridge.heartbeatPortalSession(sessionId);
+      return bridge.heartbeatPortalSession(databaseSessionId);
     }).catch(function() {
       return null;
     });
