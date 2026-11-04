@@ -525,9 +525,9 @@ async function runAllTests() {
     }
   }
 
-  console.log('\\n============================================================');
+  console.log('\n============================================================');
   console.log(`🏁 TEST SUMMARY: ${passedTests}/${tests.length} tests passed (${Math.round((passedTests/tests.length)*100)}%)`);
-  console.log('============================================================\\n');
+  console.log('============================================================\n');
   process.exitCode = passedTests === tests.length ? 0 : 1;
 }
 
