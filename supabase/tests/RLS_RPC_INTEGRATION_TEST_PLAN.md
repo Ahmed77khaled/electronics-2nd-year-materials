@@ -82,6 +82,7 @@ select set_config(
 do $$
 declare
   v_session_1 uuid;
+  v_session_2 uuid;
   v_count bigint;
   v_blocked boolean;
 begin
@@ -126,6 +127,11 @@ begin
 
   if auth.uid() <> '<STUDENT_2_UUID>'::uuid then
     raise exception 'FAIL: Student 2 JWT claim was not applied';
+  end if;
+
+  v_session_2 := public.start_portal_session('/rls-test-student-2');
+  if v_session_2 is null then
+    raise exception 'FAIL: Student 2 could not start their own session';
   end if;
 
   select count(*) into v_count
@@ -188,7 +194,7 @@ begin
   v_blocked := false;
   begin
     perform public.track_portal_event(
-      p_session_id => v_session_1,
+      p_session_id => v_session_2,
       p_event_name => 'search_used',
       p_page_path => '/rls-test',
       p_properties => '{"raw_query":"not allowed"}'::jsonb
