@@ -477,7 +477,9 @@ it('Concurrent session starts are deduplicated and hidden tabs close their datab
   const listeners = {};
   const docListeners = {};
   let startCalls = 0;
+  let heartbeatCalls = 0;
   let endCalls = 0;
+  const lifecycleCalls = [];
   const sessionUuid = '123e4567-e89b-42d3-a456-426614174000';
 
   const fakeWindow = {
@@ -504,9 +506,15 @@ it('Concurrent session starts are deduplicated and hidden tabs close their datab
       endPortalSession: async id => {
         assert.strictEqual(id, sessionUuid);
         endCalls++;
+        lifecycleCalls.push('end');
         return true;
       },
-      heartbeatPortalSession: async () => ({ success: true, creditedSeconds: 0 }),
+      heartbeatPortalSession: async id => {
+        assert.strictEqual(id, sessionUuid);
+        heartbeatCalls++;
+        lifecycleCalls.push('heartbeat');
+        return { success: true, creditedSeconds: 0 };
+      },
       getCurrentUser: async () => ({ id: 'test-user-id' }),
       trackPortalEvent: async () => ({ success: true }),
       onAuthStateChange: () => () => {}
@@ -519,6 +527,7 @@ it('Concurrent session starts are deduplicated and hidden tabs close their datab
   );
 
   try {
+    fakeWindow.PortalTracker.markUserActive();
     const ids = await Promise.all([
       fakeWindow.PortalTracker.ensureDatabaseSession(),
       fakeWindow.PortalTracker.ensureDatabaseSession()
@@ -530,7 +539,9 @@ it('Concurrent session starts are deduplicated and hidden tabs close their datab
     fakeWindow.document.visibilityState = 'hidden';
     docListeners.visibilitychange();
     await new Promise(resolve => setTimeout(resolve, 400));
+    assert.strictEqual(heartbeatCalls, 1, 'A recent final active interval should be flushed before close');
     assert.strictEqual(endCalls, 1, 'Hidden tab must close its active database session');
+    assert.deepStrictEqual(lifecycleCalls, ['heartbeat', 'end'], 'Session shutdown must flush time before ending');
     assert.strictEqual(fakeWindow.PortalTracker.getDatabaseSessionId(), null);
   } finally {
     fakeWindow.PortalTracker.stopHeartbeat();
