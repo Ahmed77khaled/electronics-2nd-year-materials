@@ -105,12 +105,15 @@
   async function ensureDatabaseSession() {
     var bridge = root.SupabaseBridge;
     if (!bridge || typeof bridge.isReady !== 'function' || !bridge.isReady() ||
-        typeof bridge.startPortalSession !== 'function' || !isForeground()) {
+        typeof bridge.startPortalSession !== 'function') {
       return null;
     }
 
     if (databaseSessionId && isUuid(databaseSessionId)) return databaseSessionId;
 
+    // A click can open another tab while its start RPC is in flight. Join that
+    // pending start even after blur; the deferred pause will close it after the
+    // click event has been written.
     if (sessionStartPromise) {
       var pending = sessionStartPromise;
       var pendingGeneration = sessionStartGeneration;
@@ -119,6 +122,7 @@
       if (databaseSessionId && isUuid(databaseSessionId)) return databaseSessionId;
     }
 
+    if (!isForeground()) return null;
     var generation = lifecycleGeneration;
     sessionStartGeneration = generation;
     var startPromise = bridge.startPortalSession(
@@ -128,7 +132,7 @@
 
       // If the page went hidden while the start RPC was in flight, close the
       // just-created server session rather than leaving a live tab session.
-      if (generation !== lifecycleGeneration || !isForeground()) {
+      if (generation !== lifecycleGeneration) {
         if (typeof bridge.endPortalSession === 'function') {
           bridge.endPortalSession(sessionId).catch(function() {});
         }
@@ -220,8 +224,12 @@
     }
   }
 
-  async function dispatchEvent(eventName, payload) {
+  async function dispatchEventInternal(eventName, payload) {
     payload = payload || {};
+    // Snapshot the interaction state before awaiting auth/network calls. A click
+    // may blur the portal immediately because it opens a resource in a new tab.
+    var wasActiveAtDispatch = isForeground() && lastInteractionTime &&
+      (Date.now() - lastInteractionTime) <= IDLE_TIMEOUT_MS;
     var user = null;
     var bridge = root.SupabaseBridge;
 
@@ -232,8 +240,7 @@
     var userId = user && user.id ? user.id : null;
     var dbSessionId = null;
 
-    if (userId && isForeground() && lastInteractionTime &&
-        (Date.now() - lastInteractionTime) <= IDLE_TIMEOUT_MS) {
+    if (userId && wasActiveAtDispatch) {
       dbSessionId = await ensureDatabaseSession();
     }
 
@@ -254,7 +261,6 @@
     dispatchLocalTelemetry(fullPayload);
 
     if (userId && dbSessionId && bridge && typeof bridge.trackPortalEvent === 'function') {
-      pendingTrackingWrites++;
       try {
         var result = await bridge.trackPortalEvent(fullPayload);
         if (debugMode && result && !result.success) {
@@ -264,11 +270,22 @@
       } catch (err) {
         if (debugMode) console.warn('[Telemetry Sync Warning]', err);
         return { success: false, error: err };
-      } finally {
-        pendingTrackingWrites = Math.max(0, pendingTrackingWrites - 1);
       }
     }
     return { success: false, reason: userId ? 'no_active_session' : 'unauthenticated_user_skipped' };
+  }
+
+  // Count the full asynchronous dispatch (including auth lookup and session
+  // creation) so a tab switch cannot close the session before a click is stored.
+  function dispatchEvent(eventName, payload) {
+    pendingTrackingWrites++;
+    return dispatchEventInternal(eventName, payload).then(function(result) {
+      pendingTrackingWrites = Math.max(0, pendingTrackingWrites - 1);
+      return result;
+    }, function(err) {
+      pendingTrackingWrites = Math.max(0, pendingTrackingWrites - 1);
+      return { success: false, error: err };
+    });
   }
 
   function setupHeartbeat() {
