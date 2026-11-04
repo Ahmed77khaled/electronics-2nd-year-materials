@@ -38,6 +38,7 @@
   var searchTimer = null;
   var currentCategory = 'all';
   var lastInteractionTime = 0;
+  var lastMeaningfulInteractionTime = 0;
   var heartbeatInterval = null;
   var IDLE_TIMEOUT_MS = 45000;
   var PAUSE_GRACE_MS = 250;
@@ -181,14 +182,15 @@
 
   function pauseDatabaseSession(reason, interactionAtPause) {
     lifecycleGeneration++;
+    var finalInteractionTime = interactionAtPause || lastMeaningfulInteractionTime;
     lastInteractionTime = 0;
     var sessionId = databaseSessionId;
     databaseSessionId = null;
 
     if (sessionId && isUuid(sessionId) && root.SupabaseBridge &&
         typeof root.SupabaseBridge.endPortalSession === 'function') {
-      var mayFlushFinalInterval = interactionAtPause &&
-        (Date.now() - interactionAtPause) <= IDLE_TIMEOUT_MS;
+      var mayFlushFinalInterval = finalInteractionTime &&
+        (Date.now() - finalInteractionTime) <= IDLE_TIMEOUT_MS;
       var finalHeartbeat = mayFlushFinalInterval ? sendHeartbeat(sessionId) : Promise.resolve(null);
 
       finalHeartbeat.then(function() {
@@ -239,6 +241,7 @@
     }
 
     lastInteractionTime = now;
+    lastMeaningfulInteractionTime = now;
     ensureDatabaseSession().catch(function() {});
   }
 
