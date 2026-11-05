@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>لوحة تحكم المشرف — دليل مواد الفرقة الثانية</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/admin.css">
+</head>
+<body class="admin">
+
+<div id="gate-screen" class="gate"><div class="gate-card"><p>جارٍ التحقق من الصلاحية…</p></div></div>
+
+<div id="shell" class="shell" hidden>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand"><span class="brand-mark" aria-hidden="true">⚡</span><div><strong>لوحة المشرف</strong><small>دليل مواد الفرقة الثانية</small></div></div>
+    <nav id="nav" class="nav" aria-label="أقسام لوحة التحكم"></nav>
+    <a class="back-site" href="../">← العودة إلى الموقع</a>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+
+  <div class="content">
+    <header class="topbar">
+      <button type="button" id="menu-btn" class="icon-btn menu-btn" aria-label="فتح القائمة"></button>
+      <div class="title-block"><h1 id="page-title">نظرة عامة</h1><p class="muted" id="range-label"></p></div>
+      <div class="top-actions">
+        <label class="range-sel"><span class="sr">الفترة الزمنية</span><select id="preset" aria-label="الفترة الزمنية"></select></label>
+        <span id="custom-range" class="custom-range" hidden>
+          <input type="date" id="d-from" aria-label="من تاريخ"><input type="date" id="d-to" aria-label="إلى تاريخ">
+        </span>
+        <div class="pop-wrap">
+          <button type="button" id="bell-btn" class="icon-btn" aria-label="الإشعارات" aria-expanded="false"></button>
+          <div id="bell-pop" class="pop" hidden><strong>الإشعارات</strong><p class="muted">لا توجد إشعارات.</p></div>
+        </div>
+        <div class="admin-chip"><span id="admin-avatar"></span><span id="admin-name"></span></div>
+        <button type="button" id="logout-btn" class="btn btn-sm">تسجيل الخروج</button>
+      </div>
+    </header>
+    <div id="mock-banner" class="mock-banner" role="status" hidden>⚠ وضع المعاينة: كل البيانات المعروضة وهمية ولا تمثل إحصاءات حقيقية.</div>
+    <main id="main" class="main" tabindex="-1" aria-live="polite"></main>
+  </div>
+</div>
+<div id="toasts" class="toasts" aria-live="polite"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/config.js"></script>
+<script src="../js/supabase-client.js"></script>
+<script src="../js/admin/contract.js"></script>
+<script src="../js/admin/supabase-adapter.js"></script>
+<script src="../js/admin/ui.js"></script>
+<script src="../js/admin/app.js"></script>
+</body>
+</html>

@@ -110,3 +110,184 @@
 }
 @media (prefers-reduced-motion: reduce) { .auth-dot, .auth-spinner { animation: none; } }
 @media print { #auth-widget, .auth-overlay { display: none !important; } }
+
+/* ==========================================================================
+   Mandatory Login Gate Styles
+   ========================================================================== */
+
+.login-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(10, 15, 29, 0.94);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  overflow-y: auto;
+  direction: rtl;
+  font-family: 'Cairo', Arial, sans-serif;
+  transition: opacity 0.35s ease, visibility 0.35s ease;
+}
+
+.login-gate[hidden] {
+  display: none !important;
+}
+
+.login-gate-card {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  background: linear-gradient(165deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.95) 100%);
+  border: 1px solid rgba(34, 211, 238, 0.3);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.65), 0 0 50px rgba(8, 145, 178, 0.2);
+  border-radius: 26px;
+  padding: 38px 28px 30px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  animation: gate-card-in 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes gate-card-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.login-gate-badge {
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(8, 145, 178, 0.22), rgba(34, 211, 238, 0.12));
+  border: 1px solid rgba(34, 211, 238, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cyan-bright, #22D3EE);
+  box-shadow: 0 10px 25px rgba(8, 145, 178, 0.3);
+  margin-bottom: 4px;
+}
+
+.login-gate-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: #FFFFFF;
+  margin: 0;
+  line-height: 1.35;
+}
+
+.login-gate-subtitle {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--cyan-bright, #22D3EE);
+  margin: 0;
+}
+
+.login-gate-desc {
+  font-size: 13px;
+  color: #94A3B8;
+  line-height: 1.65;
+  margin: 4px 0 10px;
+  max-width: 380px;
+}
+
+.gsi-button-container {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  min-height: 44px;
+  margin-bottom: 4px;
+}
+
+.gsi-button-container:empty {
+  display: none;
+}
+
+.login-gate-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 22px;
+  background: #FFFFFF;
+  color: #0F172A;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 999px;
+  font: 700 15px/1.2 'Cairo', Arial, sans-serif;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.login-gate-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(34, 211, 238, 0.35);
+}
+
+.login-gate-btn:disabled {
+  opacity: 0.8;
+  cursor: progress;
+}
+
+.login-gate-btn svg {
+  flex: none;
+}
+
+.login-gate-error {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #FECACA;
+  min-height: 0;
+}
+
+.login-gate-error:empty {
+  display: none;
+}
+
+.login-gate-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  width: 100%;
+}
+
+.login-gate-secure {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748B;
+}
+
+.login-gate-privacy {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--cyan-bright, #22D3EE);
+  text-decoration: none;
+}
+
+.login-gate-privacy:hover {
+  text-decoration: underline;
+}
+
+.portal-locked {
+  filter: blur(12px) brightness(0.65);
+  pointer-events: none;
+  user-select: none;
+  transition: filter 0.4s ease;
+}

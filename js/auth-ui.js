@@ -1,27 +1,22 @@
 /**
- * Student Authentication Widget UI (Vanilla JavaScript)
- * Seamlessly integrates Google OAuth with SupabaseBridge and preserves site responsiveness.
+ * Student Authentication & Login Gate UI (Vanilla JavaScript)
+ * Seamlessly integrates Google Identity Services (GSI) & Supabase OAuth
+ * Enforces mandatory login before entering the portal while preserving 100% responsiveness.
  */
 (function(root) {
   'use strict';
 
+  var CLIENT_ID = '29419790387-b4a54ckom00nmc0lgi3jn8o14fca869a.apps.googleusercontent.com';
   var SLOT_ID = 'auth-widget';
+  var GATE_ID = 'login-gate';
   var SPINNER_TIMEOUT_MS = 15000;
 
   var TEXT = {
     signIn: 'تسجيل الدخول بحساب Google',
     hint: '(اختياري لحفظ وقت استذكارك وسجل تفاعلك)',
     live: 'جلسة نشطة',
-    exit: 'خروج'
+    exit: 'تسجيل الخروج'
   };
-
-  var GOOGLE_G =
-    '<svg viewBox="0 0 48 48" width="20" height="20" aria-hidden="true" focusable="false">' +
-    '<path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>' +
-    '<path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>' +
-    '<path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>' +
-    '<path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>' +
-    '</svg>';
 
   function h(tag, attrs) {
     var el = document.createElement(tag);
@@ -56,6 +51,14 @@
     return document.getElementById(SLOT_ID);
   }
 
+  function getGate() {
+    return document.getElementById(GATE_ID);
+  }
+
+  function getPage() {
+    return document.querySelector('.page') || document.querySelector('main');
+  }
+
   function firstName(profile) {
     var n = (profile && (profile.full_name || (profile.user_metadata && (profile.user_metadata.full_name || profile.user_metadata.name)))) || '';
     n = n.trim();
@@ -74,80 +77,119 @@
     }
   }
 
+  function showLoginGate() {
+    var gate = getGate();
+    var page = getPage();
+    if (gate) gate.hidden = false;
+    if (page) page.classList.add('portal-locked');
+
+    // Try initializing Google Identity Services (GSI)
+    initGoogleGSI();
+  }
+
+  function hideLoginGate() {
+    var gate = getGate();
+    var page = getPage();
+    if (gate) gate.hidden = true;
+    if (page) page.classList.remove('portal-locked');
+  }
+
+  function initGoogleGSI() {
+    if (!root.google || !root.google.accounts || !root.google.accounts.id) {
+      // Retry in 300ms if GSI script is still loading asynchronously
+      setTimeout(function() {
+        if (root.google && root.google.accounts && root.google.accounts.id) {
+          initGoogleGSI();
+        }
+      }, 300);
+      return;
+    }
+
+    try {
+      root.google.accounts.id.initialize({
+        client_id: CLIENT_ID,
+        callback: handleGoogleCredentialResponse,
+        auto_select: false,
+        cancel_on_tap_outside: true
+      });
+
+
+
+      // Display One Tap if appropriate
+      root.google.accounts.id.prompt();
+    } catch (err) {
+      console.warn('Google GSI initialization warning:', err);
+    }
+  }
+
+  async function handleGoogleCredentialResponse(response) {
+    if (!response || !response.credential) return;
+    var errEl = document.getElementById('login-gate-error');
+    if (errEl) errEl.textContent = 'جاري التحقق وتسجيل الدخول...';
+
+    try {
+      if (root.SupabaseBridge && typeof root.SupabaseBridge.signInWithIdToken === 'function') {
+        var res = await root.SupabaseBridge.signInWithIdToken(response.credential);
+        if (res && res.error) {
+          if (errEl) errEl.textContent = 'تعذّر تسجيل الدخول: ' + res.error.message;
+        } else if (res && res.data && res.data.user) {
+          renderSignedIn(res.data.user);
+        }
+      }
+    } catch (e) {
+      if (errEl) errEl.textContent = 'حدث خطأ أثناء الاتصال. حاول مرة أخرى.';
+    }
+  }
+
   function renderGuest(options) {
     options = options || {};
-    var el = getSlot();
-    if (!el) return null;
-    el.hidden = false;
-
-    var spinner = h('span', { class: 'auth-spinner', 'aria-hidden': 'true', hidden: true });
-    var btn = h('button', { class: 'auth-google-btn', id: 'google-login-btn', type: 'button' });
-    btn.insertAdjacentHTML('beforeend', GOOGLE_G);
-    btn.appendChild(h('span', { class: 'auth-btn-label' }, TEXT.signIn));
-    btn.appendChild(spinner);
-
-    var msg = h('p', { class: 'auth-msg', role: 'alert' }, options.message || '');
-    var timer = null;
-
-    function reset() {
-      btn.disabled = false;
-      btn.removeAttribute('aria-busy');
-      spinner.hidden = true;
+    var slot = getSlot();
+    if (slot) {
+      slot.innerHTML = '';
+      slot.hidden = true;
     }
 
-    btn.addEventListener('click', async function() {
-      if (btn.disabled) return;
-      btn.disabled = true;
-      btn.setAttribute('aria-busy', 'true');
-      spinner.hidden = false;
-      msg.textContent = '';
-      timer = setTimeout(function() {
-        reset();
-        msg.textContent = 'الاتصال بطيء. حاول مرة أخرى.';
-      }, SPINNER_TIMEOUT_MS);
+    // Show the mandatory full-screen login gate
+    showLoginGate();
 
-      try {
-        if (typeof options.onSignIn === 'function') {
-          await options.onSignIn();
-        } else if (root.SupabaseBridge && typeof root.SupabaseBridge.signInWithGoogle === 'function') {
-          await root.SupabaseBridge.signInWithGoogle();
-        }
-      } catch (err) {
-        clearTimeout(timer);
-        reset();
-        msg.textContent = 'تعذّر بدء تسجيل الدخول. حاول مرة أخرى.';
-      }
-    });
+    var gateBtn = document.getElementById('login-gate-google-btn');
+    var gateErr = document.getElementById('login-gate-error');
+    if (gateBtn) {
+      var spinner = gateBtn.querySelector('.auth-spinner');
+      gateBtn.onclick = async function() {
+        if (gateBtn.disabled) return;
+        gateBtn.disabled = true;
+        if (spinner) spinner.hidden = false;
+        if (gateErr) gateErr.textContent = '';
 
-    if (root.addEventListener) {
-      root.addEventListener('pageshow', function(e) {
-        if (e && e.persisted) {
-          clearTimeout(timer);
-          reset();
+        try {
+          if (typeof options.onSignIn === 'function') {
+            await options.onSignIn();
+          } else if (root.SupabaseBridge && typeof root.SupabaseBridge.signInWithGoogle === 'function') {
+            await root.SupabaseBridge.signInWithGoogle();
+          }
+        } catch (err) {
+          gateBtn.disabled = false;
+          if (spinner) spinner.hidden = true;
+          if (gateErr) gateErr.textContent = 'تعذّر فتح نافذة تسجيل الدخول. حاول مجددًا.';
         }
-      });
+      };
     }
-
-    el.innerHTML = '';
-    var container = h('div', { class: 'auth-widget', 'data-state': 'guest' },
-      btn,
-      h('p', { class: 'auth-hint' }, TEXT.hint),
-      msg
-    );
-    el.appendChild(container);
-    return btn;
   }
 
   function renderSignedIn(profile, options) {
     options = options || {};
+    // Hide mandatory login gate and unlock portal
+    hideLoginGate();
+
     var el = getSlot();
     if (!el) return null;
     el.hidden = false;
 
     var first = firstName(profile);
     var greeting = first
-      ? ['أهلاً، ', h('span', { id: 'user-name' }, first)]
-      : ['أهلاً بك'];
+      ? ['أهلاً يا ', h('span', { id: 'user-name', style: 'color: var(--cyan-bright, #22D3EE);' }, first), ' 👋']
+      : ['أهلاً بك 👋'];
 
     var avatarUrl = (profile && (profile.avatar_url || (profile.user_metadata && (profile.user_metadata.avatar_url || profile.user_metadata.picture)))) || null;
     var fallback = function() {
@@ -174,7 +216,6 @@
 
     var menu = h('div', { class: 'auth-menu', id: 'auth-menu', hidden: true },
       profile && profile.email ? h('p', { class: 'auth-menu-email', id: 'user-email', dir: 'ltr' }, profile.email) : '',
-      h('a', { class: 'auth-menu-item', href: 'privacy.html' }, 'سياسة الخصوصية'),
       h('button', {
         class: 'auth-menu-item',
         type: 'button',
@@ -207,6 +248,22 @@
       profileBtn.setAttribute('aria-expanded', String(!menu.hidden));
     });
 
+    if (root.SupabaseBridge && root.SupabaseBridge.getClient) {
+      var client = root.SupabaseBridge.getClient();
+      if (client) {
+        client.rpc('is_admin').then(function(res) {
+          if (res && res.data === true) {
+            var adminLink = h('a', {
+              class: 'auth-menu-item',
+              href: 'admin/',
+              style: 'color: #0891B2; font-weight: 800;'
+            }, '⚡ لوحة تحكم المشرف');
+            menu.insertBefore(adminLink, menu.firstChild);
+          }
+        }).catch(function() {});
+      }
+    }
+
     var exitBtn = h('button', { class: 'auth-exit', id: 'logout-btn', type: 'button' }, TEXT.exit);
     exitBtn.addEventListener('click', async function() {
       exitBtn.disabled = true;
@@ -231,23 +288,19 @@
   }
 
   async function initAuthWidget() {
-    var slot = getSlot();
-    if (!slot) return;
-
-    if (!root.SupabaseBridge || !root.SupabaseBridge.isConfigured || !root.SupabaseBridge.isConfigured()) {
-      slot.hidden = true;
-      return;
-    }
-
-    // Clean OAuth redirect params if present
+    // Clean OAuth redirect params if present in URL
     if (root.location && (root.location.search.indexOf('code=') !== -1 || root.location.hash.indexOf('access_token') !== -1)) {
       cleanUrl();
     }
 
     try {
-      var user = await root.SupabaseBridge.getCurrentUser();
-      if (user) {
-        renderSignedIn(user);
+      if (root.SupabaseBridge && typeof root.SupabaseBridge.getCurrentUser === 'function') {
+        var user = await root.SupabaseBridge.getCurrentUser();
+        if (user) {
+          renderSignedIn(user);
+        } else {
+          renderGuest();
+        }
       } else {
         renderGuest();
       }

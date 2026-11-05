@@ -334,12 +334,24 @@
     if (!isReady || !clientInstance) return { error: new Error('Supabase client not ready') };
     var opts = options || {};
     var redirectTo = opts.redirectTo || (root.location ? (root.location.origin + root.location.pathname) : undefined);
+    var queryParams = Object.assign({ prompt: 'select_account' }, opts.queryParams || {});
     return await clientInstance.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: redirectTo
+        redirectTo: redirectTo,
+        queryParams: queryParams
       }
     });
+  }
+
+  async function signInWithIdToken(token, nonce) {
+    if (!isReady || !clientInstance) return { error: new Error('Supabase client not ready') };
+    var params = {
+      provider: 'google',
+      token: token
+    };
+    if (nonce) params.nonce = nonce;
+    return await clientInstance.auth.signInWithIdToken(params);
   }
 
   async function signOut() {
@@ -377,6 +389,7 @@
     getClient: function() { return clientInstance; },
     getCurrentUser: getCurrentUser,
     signInWithGoogle: signInWithGoogle,
+    signInWithIdToken: signInWithIdToken,
     signOut: signOut,
     startPortalSession: startPortalSession,
     heartbeatPortalSession: heartbeatPortalSession,
