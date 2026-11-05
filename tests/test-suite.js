@@ -74,7 +74,19 @@ it('Resource Registry JSON contains exactly 75 verified unique entities', () => 
   assert.strictEqual(count, 75, `Expected 75 entities, got ${count}`);
 });
 
-it('All Drive and YouTube links with data-resource-id in index.html strictly match registered URLs', () => {
+it('All Drive and YouTube links in index.html possess data-resource-id and match registered URLs', () => {
+  // 1. Verify zero unmapped external Drive/YouTube links
+  const driveOrYtRegex = /<a\s+([^>]*href=["'](https:\/\/(?:drive\.google\.com|youtube\.com)[^"']*)["'][^>]*)>/gi;
+  let extMatch;
+  let totalExternal = 0;
+  while ((extMatch = driveOrYtRegex.exec(htmlContent)) !== null) {
+    totalExternal++;
+    const fullTag = extMatch[0];
+    assert(fullTag.includes('data-resource-id='), `External link missing data-resource-id attribute: ${extMatch[2]}`);
+  }
+  assert.strictEqual(totalExternal, 67, `Expected exactly 67 external Drive/YouTube links in index.html, found ${totalExternal}`);
+
+  // 2. Strict 1:1 parity with Resource Registry
   const aRegex = /<a\s+([^>]*data-resource-id=["']([^"']+)["'][^>]*)>/g;
   let m;
   let testedLinks = 0;
@@ -96,7 +108,7 @@ it('All Drive and YouTube links with data-resource-id in index.html strictly mat
     }
   }
 
-  assert(testedLinks >= 65, `Expected at least 65 linked resources in HTML, found ${testedLinks}`);
+  assert.strictEqual(testedLinks, 67, `Expected exactly 67 linked resources in HTML, found ${testedLinks}`);
 });
 
 it('Vanilla JS registry module loads seamlessly and matches JSON data', () => {
