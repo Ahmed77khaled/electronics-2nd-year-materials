@@ -1,0 +1,14 @@
+:root { --navy: #1E3A8A; --cyan: #0891B2; --ink: #1F2937; --muted: #64748B; --border: #E2E8F0; --bg: #F8FAFC; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: 'Cairo', -apple-system, "Segoe UI", Arial, sans-serif; line-height: 1.9; direction: rtl; }
+.wrap { width: min(100% - 32px, 820px); margin: 0 auto; padding: 32px 0 56px; }
+header.hero { background: linear-gradient(135deg, #1E3A8A, #172B6B); color: #fff; border-radius: 24px; padding: 28px 28px 24px; text-align: center; }
+header.hero h1 { margin: 0; font-size: 28px; font-weight: 800; }
+header.hero p { margin: 6px 0 0; color: #BAE6FD; font-weight: 600; font-size: 14px; }
+section { background: #fff; border: 1px solid var(--border); border-radius: 16px; padding: 18px 22px; margin-top: 16px; }
+h2 { margin: 0 0 6px; font-size: 19px; color: var(--navy); }
+ul { margin: 6px 0; padding-inline-start: 22px; }
+li { margin: 2px 0; }
+a { color: #0E7490; font-weight: 700; }
+.back { display: inline-block; margin-top: 18px; }
+.callout { background: #ECFEFF; border: 1px solid #CFFAFE; border-radius: 12px; padding: 10px 14px; margin: 10px 0 0; }

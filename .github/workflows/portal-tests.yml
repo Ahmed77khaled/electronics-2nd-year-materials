@@ -1,0 +1,57 @@
+name: Portal Security and Regression Tests
+
+on:
+  push:
+    branches:
+      - feature/resource-registry-supabase
+      - 'feature/**'
+      - 'fix/**'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  node-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Syntax-check browser modules and test runner
+        run: |
+          node --check js/supabase-client.js
+          node --check js/tracker.js
+          node --check tests/test-suite.js
+          node --check scripts/seed-supabase.js
+          node --check js/admin/contract.js
+          node --check js/admin/supabase-adapter.js
+          node --check js/admin/ui.js
+          node --check js/admin/app.js
+          node --check tests/test-task1-admin-loading.js
+          node --check tests/test-task3-admin-metrics.js
+          node --check tests/test-task4-admin-filter-export.js
+          node --check tests/test-task5-report-user-autocomplete.js
+
+      - name: Run Portal Regression Tests
+        run: node tests/test-suite.js
+
+      - name: Run Admin Dashboard Acceptance Tests
+        run: node tests/test-task1-admin-loading.js
+
+      - name: Run Admin Metrics Accuracy Tests
+        run: node tests/test-task3-admin-metrics.js
+
+      - name: Run Admin Filter and Export Acceptance Tests
+        run: node tests/test-task4-admin-filter-export.js
+
+      - name: Run Report User Autocomplete Acceptance Tests
+        run: node tests/test-task5-report-user-autocomplete.js
