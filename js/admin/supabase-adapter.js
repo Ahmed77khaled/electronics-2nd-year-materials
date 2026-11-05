@@ -31,8 +31,7 @@
 
   // Helper: compute student status
   function computeStudentStatus(lastSeen, totalSessions) {
-    if (!totalSessions || Number(totalSessions) === 0) return 'never_active';
-    if (!lastSeen) return 'inactive';
+    if (!lastSeen) return 'never_active';
     var diff = Date.now() - new Date(lastSeen).getTime();
     if (diff < 15 * 60 * 1000) return 'active_now';
     if (diff < 24 * 60 * 60 * 1000) return 'active_today';
@@ -283,7 +282,9 @@
     var activeUserIds = {}, activeNowIds = {}, courseCounts = {}, resourceCounts = {};
     var daily = {};
     var totalResourceClicks = 0;
+    var authenticatedPageViews = 0;
     events.forEach(function (event) {
+      if (event.event_name === 'page_view') authenticatedPageViews++;
       if (event.user_id) activeUserIds[event.user_id] = true;
       var day = String(event.occurred_at || '').slice(0, 10);
       if (day) {
@@ -412,7 +413,7 @@
         sessionsToday: sessionsToday,
         totalSeconds: seconds,
         avgSessionSeconds: sessions.length ? Math.round(seconds / sessions.length) : 0,
-        pageViews: null,
+        pageViews: authenticatedPageViews,
         resourceClicks: totalResourceClicks,
         anonymousVisitors: Object.keys(anonymousVisitorIds).length,
         anonymousSessions: Object.keys(anonymousSessionIds).length,
@@ -464,7 +465,7 @@
         email: s.email,
         avatarUrl: s.avatar_url,
         registeredAt: s.registered_at,
-        lastLoginAt: null,
+        lastLoginAt: s.last_login_at || null,
         lastActiveAt: s.last_active_at,
         sessions: Number(s.session_count || 0),
         totalSeconds: Number(s.total_active_seconds || 0),
@@ -611,7 +612,7 @@
       email: s.email,
       avatarUrl: s.avatar_url,
       registeredAt: s.registered_at,
-      lastLoginAt: null,
+      lastLoginAt: s.last_login_at || null,
       lastActiveAt: s.last_active_at,
       sessions: Number(s.session_count || 0),
       totalSeconds: Number(s.total_active_seconds || 0),
@@ -624,7 +625,7 @@
       stats: {
         sessions: user.sessions,
         totalSeconds: user.totalSeconds,
-        pageViews: null,
+        pageViews: toNullableNumber(s.page_view_count),
         courseVisits: toNullableNumber(s.course_visit_count),
         resourceClicks: toNullableNumber(s.resource_click_count),
         firstActivityAt: s.first_activity_at || null,
@@ -975,8 +976,8 @@
           ];
         });
       }
-      headers = ['Anonymous Visitor Key', 'First Seen', 'Last Seen', 'Sessions in Period',
-        'Page Views in Period', 'Events in Period', 'First Page', 'Last Page'];
+      headers = ['Login Gate Browser ID', 'First Login Gate View', 'Last Login Gate View', 'Login Gate Visits',
+        'Login Gate Page Views', 'Login Gate Events', 'First Path', 'Last Path'];
     } else if (type === 'users') {
       var results = await Promise.all([
         fetchAllRows(function () { return client.from('admin_student_summary').select('*').order('registered_at', { ascending: false }).order('user_id', { ascending: true }); }),

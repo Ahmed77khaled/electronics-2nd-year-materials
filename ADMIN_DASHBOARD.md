@@ -46,12 +46,13 @@ Any field may be `null` → UI shows «غير متاح».
 | `getFilterOptions()` *(optional)* | `{ courses: [{id,title}], resourceTypes?: [...] }` — fills the course / resource-type selects |
 | `signOut()` *(optional)* | Promise; the UI also dispatches `admin:logout-request` on `document` |
 
-## Known measurement limitations
-- `lastLoginAt` remains unavailable because the current sign-in flow does not yet write a dedicated `login_success` event.
-- Identified-user `pageViews` remain unavailable until authenticated page-view recording is added. Anonymous page views are tracked separately by migration 008.
-- `avgEngagementSeconds` remains unavailable; the current tracker does not measure time spent in an external Drive document or YouTube video.
-- Anonymous visitor IDs represent browser storage, not verified people. Clearing site data or changing browsers/devices produces a new visitor ID. Visitor counts are estimates and can be affected by private browsing, blockers, or automated traffic.
-- Visitor activity is aggregated from paginated rows in the browser adapter. For substantially higher traffic, move these aggregates into database RPCs/materialized summaries.
+## Measurement definitions and limitations
+- `lastLoginAt` is populated from the authenticated `login_success` event introduced by migration 009.
+- Authenticated `pageViews` count page views recorded after the student passes the mandatory login gate. Entry events do not create an engagement session or credit active time.
+- Anonymous records represent visits to the mandatory login screen only. They are not views of course content and are not counted as student usage. The short technical visit session is closed after its gate-view event is recorded.
+- Anonymous visitor IDs represent browser storage, not verified people. Clearing site data or changing browsers/devices produces a new visitor ID. Counts can be affected by private browsing, blockers, or automated traffic.
+- The overview and login-gate visits list refresh every 10 seconds while the tab is visible, without reloading the whole page.
+- `avgEngagementSeconds` does not measure time spent in external Drive documents or YouTube videos. Portal active time is an estimate while the portal is visible and recently active.
 
 ## Security requirements (backend, not UI)
 Access is enforced by RLS / `is_admin()` (already used by the admin views), never by this UI. Never put service-role keys in the browser, never trust a client-supplied role, no self-promotion to admin. The UI's "unauthorized" screen is a convenience only.

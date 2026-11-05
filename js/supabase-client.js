@@ -433,6 +433,25 @@
     }
   }
 
+  async function trackAuthenticatedPortalEvent(eventName, pagePath) {
+    if (!isReady || !clientInstance) return { success: false, reason: 'client_not_ready' };
+    var user = await getCurrentUser();
+    if (!user || !user.id) return { success: false, reason: 'unauthenticated_user_skipped' };
+    if (eventName !== 'page_view' && eventName !== 'login_success') {
+      return { success: false, reason: 'unsupported_entry_event' };
+    }
+    try {
+      var result = await clientInstance.rpc('record_authenticated_portal_event', {
+        p_event_name: eventName,
+        p_page_path: pagePath || getPathname()
+      });
+      if (result && result.error) return { success: false, error: result.error };
+      return { success: true, event_id: result ? result.data : null };
+    } catch (err) {
+      return { success: false, error: err.message || String(err) };
+    }
+  }
+
   function onAuthStateChange(listener) {
     if (typeof listener !== 'function') return function() {};
     authListeners.push(listener);
@@ -512,6 +531,7 @@
     heartbeatAnonymousVisitorSession: heartbeatAnonymousVisitorSession,
     endAnonymousVisitorSession: endAnonymousVisitorSession,
     trackAnonymousVisitorEvent: trackAnonymousVisitorEvent,
+    trackAuthenticatedPortalEvent: trackAuthenticatedPortalEvent,
     onAuthStateChange: onAuthStateChange,
     isUuid: isUuid,
     reinit: init

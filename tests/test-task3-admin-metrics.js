@@ -8,6 +8,7 @@ const assert = require('assert');
 const root = path.join(__dirname, '..');
 const adapter = fs.readFileSync(path.join(root, 'js', 'admin', 'supabase-adapter.js'), 'utf8');
 const migration = fs.readFileSync(path.join(root, 'supabase', 'migrations', '007_admin_analytics_metric_accuracy.sql'), 'utf8');
+const migration009 = fs.readFileSync(path.join(root, 'supabase', 'migrations', '009_portal_launch_reset_and_authenticated_entry.sql'), 'utf8');
 const workflow = fs.readFileSync(path.join(root, '.github', 'workflows', 'portal-tests.yml'), 'utf8');
 const tracker = fs.readFileSync(path.join(root, 'js', 'tracker.js'), 'utf8');
 
@@ -16,29 +17,34 @@ function testCase(name, fn) {
   tests.push({ name, fn });
 }
 
-testCase('Page views stay unavailable until page_view tracking is implemented', function () {
-  assert(adapter.includes('pageViews: null'));
+testCase('Authenticated page views are counted from recorded page_view events', function () {
+  assert(adapter.includes('var authenticatedPageViews = 0'));
+  assert(adapter.includes("if (event.event_name === 'page_view') authenticatedPageViews++"));
+  assert(adapter.includes('pageViews: authenticatedPageViews'));
+  assert(migration009.includes('page_view_count'));
+  assert(migration009.includes('record_authenticated_portal_event'));
+  assert(tracker.includes('recordAuthenticatedEntry'));
   assert(!adapter.includes('pageViewsSum'));
   assert(!adapter.includes('metrics.total_page_views'));
-  assert(!migration.includes('total_page_views'));
-  assert(!/dispatchEvent\s*\(\s*['"]page_view['"]/.test(tracker));
 });
 
 testCase('User activity counts are read from per-user event aggregates', function () {
   assert(adapter.includes('s.course_visit_count'));
   assert(adapter.includes('s.resource_click_count'));
   assert(adapter.includes('s.first_activity_at'));
-  assert(adapter.includes('pageViews: null'));
-  assert(!adapter.includes('s.last_login_at'));
+  assert(adapter.includes('pageViews: toNullableNumber(s.page_view_count)'));
+  assert(adapter.includes('s.last_login_at || null'));
   assert(!adapter.includes('Math.round(user.sessions * 2.5)'));
   assert(!adapter.includes('Math.round(user.sessions * 1.8)'));
   assert(!/resourceClicks:\s*Number\(s\.session_count/.test(adapter));
 });
 
-testCase('Last login remains unavailable until login_success tracking is implemented', function () {
-  assert(adapter.includes('lastLoginAt: null'));
-  assert(!migration.includes('last_login_at'));
-  assert(!/dispatchEvent\s*\(\s*['"]login_success['"]/.test(tracker));
+testCase('Last login is populated from the authenticated login_success event', function () {
+  assert(adapter.includes('lastLoginAt: s.last_login_at || null'));
+  assert(migration009.includes('last_login_at'));
+  assert(migration009.includes("'login_success'"));
+  assert(tracker.includes('recordAuthenticatedEntry(true)'));
+  assert(tracker.includes('trackAuthenticatedPortalEvent'));
 });
 
 testCase('Course visits count course_click events only', function () {
@@ -71,7 +77,8 @@ testCase('Active-now KPI counts distinct users rather than open sessions', funct
 testCase('New or unavailable metrics remain null instead of being fabricated as zero', function () {
   assert(adapter.includes('function toNullableNumber(value)'));
   assert(adapter.includes('if (value === null || value === undefined || value === \'\') return null;'));
-  assert(adapter.includes('pageViews: null'));
+  assert(adapter.includes('avgEngagementSeconds: null'));
+  assert(adapter.includes('function toNullableNumber(value)'));
 });
 
 testCase('All new analytics views retain admin-only access and RLS semantics', function () {

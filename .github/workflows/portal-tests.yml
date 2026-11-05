@@ -41,6 +41,7 @@ jobs:
           node --check tests/test-task4-admin-filter-export.js
           node --check tests/test-task5-report-user-autocomplete.js
           node --check tests/test-task6-anonymous-visitors.js
+          node --check tests/test-task7-authenticated-entry-and-live-refresh.js
 
       - name: Run Portal Regression Tests
         run: node tests/test-suite.js
@@ -59,3 +60,6 @@ jobs:
 
       - name: Run Anonymous Visitor Tracking Acceptance Tests
         run: node tests/test-task6-anonymous-visitors.js
+
+      - name: Run Authenticated Entry and Live Refresh Acceptance Tests
+        run: node tests/test-task7-authenticated-entry-and-live-refresh.js

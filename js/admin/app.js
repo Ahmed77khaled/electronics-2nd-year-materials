@@ -6,6 +6,9 @@
   var routeVersion = 0;
   var ADMIN_LOADING_TIMEOUT_MS = 15000;
   var ADMIN_REPORT_TIMEOUT_MS = 20000;
+  var AUTO_REFRESH_INTERVAL_MS = 10000;
+  var autoRefreshTimer = null;
+  var currentViewRefresh = null;
   var state = { preset: '30d', from: '', to: '', options: { courses: [] }, access: null };
   var vs = {};               // per-view state (filters, page, sort)
 
@@ -210,8 +213,9 @@
       var s = vs[name] = vs[name] || { page: 1, pageSize: 15, sort: cfg.sort, f: JSON.parse(JSON.stringify(cfg.defaults)), req: 0 };
       main.innerHTML = pageHead(cfg.title, cfg.sub) + toolbarHtml(cfg.fields, s) + '<div id="results"></div>';
       var res = $('results');
-      function load() {
-        var id = ++s.req; res.innerHTML = U.skeleton('table');
+      function load(silent) {
+        var id = ++s.req;
+        if (!silent) res.innerHTML = U.skeleton('table');
         guard(res, cfg.fetch(cleanFilters(s.f, cfg.map), { page: s.page, pageSize: s.pageSize, sort: s.sort }), function (r) {
           if (id !== s.req) return;
           if (!r || !r.items || !r.items.length) { res.innerHTML = U.empty(cfg.emptyMsg || 'لا توجد نتائج', 'جرّب تغيير الفلاتر أو الفترة الزمنية.'); return; }
@@ -220,7 +224,9 @@
           qa('[data-page]', res).forEach(function (b) { b.addEventListener('click', function () { s.page = +b.getAttribute('data-page'); load(); }); });
         }, load, function () { return id === s.req; });
       }
-      bindToolbar(s, load, cfg.defaults); load();
+      bindToolbar(s, load, cfg.defaults);
+      currentViewRefresh = name === 'visitors' ? function() { load(true); } : null;
+      load(false);
     };
   }
 
@@ -229,14 +235,14 @@
     ['registeredUsers', 'إجمالي المسجّلين', U.num], ['activeUsers', 'المستخدمون النشطون (الفترة)', U.num], ['activeNow', 'نشطون الآن', U.num],
     ['activeToday', 'نشطون اليوم', U.num], ['activeWeek', 'نشطون هذا الأسبوع', U.num], ['totalSessions', 'إجمالي الجلسات', U.num],
     ['sessionsToday', 'جلسات اليوم', U.num], ['totalSeconds', 'إجمالي وقت التصفح', U.dur], ['avgSessionSeconds', 'متوسط مدة الجلسة', U.dur],
-    ['pageViews', 'مرات فتح الصفحات (المسجلون)', U.num], ['resourceClicks', 'ضغطات الموارد', U.num],
-    ['anonymousVisitors', 'الزوار بدون تسجيل (الفترة)', U.num], ['anonymousActiveNow', 'زوار نشطون الآن', U.num],
-    ['anonymousSessions', 'جلسات الزوار', U.num], ['anonymousPageViews', 'مرات فتح الصفحات (الزوار)', U.num]
+    ['pageViews', 'مشاهدات صفحات الطلاب المسجّلين', U.num], ['resourceClicks', 'ضغطات الموارد', U.num],
+    ['anonymousVisitors', 'متصفحات وصلت لشاشة تسجيل الدخول', U.num],
+    ['anonymousSessions', 'مرات فتح شاشة تسجيل الدخول', U.num], ['anonymousPageViews', 'مشاهدات شاشة تسجيل الدخول', U.num]
   ];
   function overview() {
-    main.innerHTML = pageHead('نظرة عامة') + U.skeleton('kpis');
-    var load = overview;
-    guard(main, D.call('getOverview', globalFilters()), function (o) {
+    function load(silent) {
+      if (!silent) main.innerHTML = pageHead('نظرة عامة', 'تتحدّث الإحصائيات تلقائيًا كل 10 ثوانٍ.') + U.skeleton('kpis');
+      guard(main, D.call('getOverview', globalFilters()), function (o) {
       o = o || {}; var k = o.kpis || {}, s = o.series || {};
       var card = function (title, body) { return '<section class="card"><h3 class="card-t">' + title + '</h3>' + body + '</section>'; };
       var recent = (o.recentActivity || []).length ? '<ul class="feed">' + o.recentActivity.map(function (e) { return '<li><div><strong>' + userLink(e.userId, e.userName) + '</strong> — ' + esc(U.eventLabel(e.eventName)) + (evContext(e) ? '<div class="tl-meta">' + evContext(e) + '</div>' : '') + '</div><time>' + U.dateTime(e.occurredAt) + '</time></li>'; }).join('') + '</ul>' : U.empty('لا يوجد نشاط حديث');
@@ -245,16 +251,19 @@
         var shortKey = String(v.visitorKey || '').slice(0, 8);
         return '<li><div><strong>زائر ' + esc(shortKey) + '</strong><div class="tl-meta mono" dir="ltr">' + esc(v.lastPath || '/') + '</div></div><time>' + U.dateTime(v.lastSeenAt) + '</time></li>';
       }).join('') + '</ul>' : U.empty('لا يوجد زوار مجهولون في الفترة المحددة');
-      main.innerHTML = pageHead('نظرة عامة') +
+      main.innerHTML = pageHead('نظرة عامة', 'تتحدّث الإحصائيات تلقائيًا كل 10 ثوانٍ.') +
         '<div class="kpi-grid">' + KPIS.map(function (d) { return '<div class="card kpi"><span class="kpi-l">' + d[1] + '</span><strong class="kpi-v">' + d[2](k[d[0]]) + '</strong></div>'; }).join('') + '</div>' +
         '<div class="grid-2">' + card('المستخدمون النشطون يوميًا', U.chart(s.dailyActive, { label: 'المستخدمون النشطون يوميًا' })) + card('الجلسات عبر الزمن', U.chart(s.sessions, { label: 'الجلسات' })) +
         card('اتجاه التسجيل', U.chart(s.registrations, { bars: true, label: 'التسجيلات' })) + card('اتجاه التفاعل (الأحداث)', U.chart(s.events, { label: 'الأحداث' })) +
-        card('الزوار بدون تسجيل يوميًا', U.chart(s.dailyVisitors, { label: 'الزوار بدون تسجيل' })) +
-        card('مشاهدات صفحات الزوار', U.chart(s.anonymousPageViews, { label: 'مشاهدات صفحات الزوار' })) +
-        card('المواد الأكثر زيارة', U.barList(o.topCourses)) + card('الموارد الأكثر ضغطًا', U.barList(o.topResources)) +
-        card('آخر نشاط للمستخدمين المسجّلين', recent) + card('أحدث المسجّلين', latest) +
-        card('أحدث الزوار بدون تسجيل', latestAnonymous) + '</div>';
-    }, load);
+        card('زيارات شاشة تسجيل الدخول يوميًا', U.chart(s.dailyVisitors, { label: 'زيارات شاشة تسجيل الدخول' })) +
+        card('مشاهدات شاشة تسجيل الدخول', U.chart(s.anonymousPageViews, { label: 'مشاهدات شاشة تسجيل الدخول' })) +
+        card('المواد الأكثر زيارة بعد تسجيل الدخول', U.barList(o.topCourses)) + card('الموارد الأكثر ضغطًا', U.barList(o.topResources)) +
+        card('آخر نشاط للمستخدمين المسجّلين', recent) + card('أحدث الحسابات المسجّلة', latest) +
+        card('أحدث زيارات شاشة الدخول', latestAnonymous) + '</div>';
+      }, load);
+    }
+    currentViewRefresh = function() { load(true); };
+    load(false);
   }
 
   // ---------------- Users ----------------
@@ -381,20 +390,19 @@
       { label: 'الحالة', render: function (x) { return U.chip(U.SESSION_STATUS, x.status); } }]);
   }
   var visitors = listView('visitors', {
-    title: 'الزوار بدون تسجيل', sub: 'معرّفات عشوائية للمتصفحات — لا تتضمن أسماء أو بريدًا إلكترونيًا.',
+    title: 'زيارات شاشة تسجيل الدخول', sub: 'تتحدّث القائمة تلقائيًا كل 10 ثوانٍ. هذه زيارات لشاشة الدخول فقط وليست مشاهدات لمحتوى المواد.',
     defaults: { search: '' }, sort: { field: 'lastSeenAt', dir: 'desc' },
     fields: [{ type: 'search', key: 'search', ph: 'بحث بمعرّف الزائر أو الصفحة' }],
     fetch: function (f, p) { return D.call('getAnonymousVisitors', f, p); },
     cols: [
-      { label: 'الزائر', render: function (v) { return '<span class="mono" dir="ltr">' + esc(String(v.visitorKey || '').slice(0, 16)) + '…</span>'; } },
+      { label: 'معرّف المتصفح', render: function (v) { return '<span class="mono" dir="ltr">' + esc(String(v.visitorKey || '').slice(0, 16)) + '…</span>'; } },
       { label: 'أول زيارة', sort: 'firstSeenAt', render: function (v) { return U.dateTime(v.firstSeenAt); } },
       { label: 'آخر زيارة', sort: 'lastSeenAt', render: function (v) { return U.dateTime(v.lastSeenAt); } },
-      { label: 'الجلسات', render: function (v) { return U.num(v.sessions); } },
-      { label: 'الصفحات المفتوحة', render: function (v) { return U.num(v.pageViews); } },
+      { label: 'مرات فتح شاشة الدخول', render: function (v) { return U.num(v.sessions); } },
+      { label: 'مشاهدات شاشة الدخول', render: function (v) { return U.num(v.pageViews); } },
       { label: 'الأحداث', render: function (v) { return U.num(v.eventCount); } },
-      { label: 'وقت التصفح', render: function (v) { return U.dur(v.totalSeconds); } },
-      { label: 'آخر صفحة', render: function (v) { return '<span class="mono" dir="ltr">' + esc(v.lastPath || '/') + '</span>'; } },
-      { label: 'الحالة', render: function (v) { return v.activeNow ? '<span class="chip chip-ok">نشط الآن</span>' : '<span class="chip chip-muted">غير نشط</span>'; } }
+      { label: 'آخر مسار', render: function (v) { return '<span class="mono" dir="ltr">' + esc(v.lastPath || '/') + '</span>'; } },
+      { label: 'الحالة', render: function () { return '<span class="chip chip-muted">زائر غير مسجّل</span>'; } }
     ]
   });
 
@@ -629,7 +637,7 @@
   }
 
   // ---------------- Reports ----------------
-  var REPORTS = [['users', 'تقرير نشاط المستخدمين', 'بيانات المستخدمين المسجّلين: الجلسات والوقت والضغطات.'], ['visitors', 'تقرير الزوار بدون تسجيل', 'معرّفات الزوار العشوائية والزيارات والصفحات خلال الفترة.'], ['sessions', 'تقرير الجلسات', 'كل الجلسات المسجّلة في الفترة المحددة.'],
+  var REPORTS = [['users', 'تقرير نشاط المستخدمين', 'بيانات المستخدمين المسجّلين: الجلسات والوقت والضغطات.'], ['visitors', 'تقرير زيارات شاشة تسجيل الدخول', 'معرّفات متصفحات وصلت إلى شاشة الدخول، دون احتسابها كمشاهدات لمحتوى المواد.'], ['sessions', 'تقرير الجلسات', 'كل الجلسات المسجّلة في الفترة المحددة.'],
     ['courses', 'تقرير تحليلات المواد', 'الزيارات والمستخدمون الفريدون وضغطات الموارد لكل مادة.'], ['resources', 'تقرير تحليلات الموارد', 'الضغطات والمستخدمون الفريدون لكل مورد.'], ['daily', 'تقرير النشاط اليومي', 'ملخص النشاط يومًا بيوم.']];
   function reports() {
     var s = vs.reports = vs.reports || { f: { search: '', userId: '', visitorSearch: '', courseId: '', resourceType: '', eventName: '' } };
@@ -681,11 +689,12 @@
   }
 
 
-  var NAV = [['overview', 'نظرة عامة', 'overview', overview], ['users', 'المستخدمون', 'users', users], ['visitors', 'الزوار بدون تسجيل', 'users', visitors], ['sessions', 'الجلسات', 'sessions', sessions], ['logs', 'سجل النشاط', 'logs', logs],
+  var NAV = [['overview', 'نظرة عامة', 'overview', overview], ['users', 'المستخدمون', 'users', users], ['visitors', 'زيارات شاشة الدخول', 'users', visitors], ['sessions', 'الجلسات', 'sessions', sessions], ['logs', 'سجل النشاط', 'logs', logs],
     ['courses', 'تحليلات المواد', 'courses', courses], ['resources', 'تحليلات الموارد', 'resources', resources], ['reports', 'التقارير', 'reports', reports]];
 
   function route() {
     routeVersion++;
+    currentViewRefresh = null;
     var parts = (location.hash.replace(/^#\/?/, '') || 'overview').split('/'), name = parts[0], arg = parts[1] && decodeURIComponent(parts[1]);
     var nav = NAV.filter(function (n) { return n[0] === name; })[0] || NAV[0];
     qa('.nav a').forEach(function (a) { var on = a.getAttribute('data-nav') === nav[0]; a.classList.toggle('on', on); if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
@@ -750,11 +759,20 @@
     });
   }
 
+  function startAutoRefresh() {
+    if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+    autoRefreshTimer = setInterval(function() {
+      if (document.visibilityState === 'hidden' || !currentViewRefresh) return;
+      currentViewRefresh();
+    }, AUTO_REFRESH_INTERVAL_MS);
+  }
+
   function start() {
     $('gate-screen').hidden = true;
     $('shell').hidden = false;
     buildShell();
     route();
+    startAutoRefresh();
     if (D.has('getFilterOptions')) {
       Promise.resolve()
         .then(function () { return D.call('getFilterOptions'); })
