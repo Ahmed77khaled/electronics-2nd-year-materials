@@ -976,8 +976,8 @@
           ];
         });
       }
-      headers = ['Anonymous Visitor Key', 'First Seen', 'Last Seen', 'Sessions in Period',
-        'Page Views in Period', 'Events in Period', 'First Page', 'Last Page'];
+      headers = ['Login Gate Browser ID', 'First Login Gate View', 'Last Login Gate View', 'Login Gate Visits',
+        'Login Gate Page Views', 'Login Gate Events', 'First Path', 'Last Path'];
     } else if (type === 'users') {
       var results = await Promise.all([
         fetchAllRows(function () { return client.from('admin_student_summary').select('*').order('registered_at', { ascending: false }).order('user_id', { ascending: true }); }),

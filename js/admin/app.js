@@ -236,7 +236,7 @@
     ['activeToday', 'نشطون اليوم', U.num], ['activeWeek', 'نشطون هذا الأسبوع', U.num], ['totalSessions', 'إجمالي الجلسات', U.num],
     ['sessionsToday', 'جلسات اليوم', U.num], ['totalSeconds', 'إجمالي وقت التصفح', U.dur], ['avgSessionSeconds', 'متوسط مدة الجلسة', U.dur],
     ['pageViews', 'مشاهدات صفحات الطلاب المسجّلين', U.num], ['resourceClicks', 'ضغطات الموارد', U.num],
-    ['anonymousVisitors', 'أجهزة وصلت لشاشة تسجيل الدخول', U.num], ['anonymousActiveNow', 'شاشات دخول نشطة الآن', U.num],
+    ['anonymousVisitors', 'متصفحات وصلت لشاشة تسجيل الدخول', U.num],
     ['anonymousSessions', 'مرات فتح شاشة تسجيل الدخول', U.num], ['anonymousPageViews', 'مشاهدات شاشة تسجيل الدخول', U.num]
   ];
   function overview() {
@@ -401,8 +401,6 @@
       { label: 'مرات فتح شاشة الدخول', render: function (v) { return U.num(v.sessions); } },
       { label: 'مشاهدات شاشة الدخول', render: function (v) { return U.num(v.pageViews); } },
       { label: 'الأحداث', render: function (v) { return U.num(v.eventCount); } },
-      { label: 'أول وصول', render: function (v) { return U.dateTime(v.firstSeenAt); } },
-      { label: 'آخر وصول', render: function (v) { return U.dateTime(v.lastSeenAt); } },
       { label: 'آخر مسار', render: function (v) { return '<span class="mono" dir="ltr">' + esc(v.lastPath || '/') + '</span>'; } },
       { label: 'الحالة', render: function () { return '<span class="chip chip-muted">زائر غير مسجّل</span>'; } }
     ]
