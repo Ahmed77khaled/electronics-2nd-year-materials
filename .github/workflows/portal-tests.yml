@@ -42,6 +42,7 @@ jobs:
           node --check tests/test-task5-report-user-autocomplete.js
           node --check tests/test-task6-anonymous-visitors.js
           node --check tests/test-task7-authenticated-entry-and-live-refresh.js
+          node --check tests/test-task8-admin-user-deletion.js
 
       - name: Run Portal Regression Tests
         run: node tests/test-suite.js
@@ -63,3 +64,6 @@ jobs:
 
       - name: Run Authenticated Entry and Live Refresh Acceptance Tests
         run: node tests/test-task7-authenticated-entry-and-live-refresh.js
+
+      - name: Run Admin User Deletion Acceptance Tests
+        run: node tests/test-task8-admin-user-deletion.js
