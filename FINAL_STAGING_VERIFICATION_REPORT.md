@@ -25,7 +25,7 @@
 | **GitHub Actions CI Workflow** | **PASS** | Workflow run [#41937758613](https://github.com/Ahmed77khaled/electronics-2nd-year-materials/actions/runs/41937758613) | Completed with status `Success` on Ubuntu runner. |
 | **Live Database Migrations Execution** | **PASS** | Executed on `electronics-materials-staging` | Migrations 001–005 applied: 7 courses, 75 resources verified. |
 | **Live RLS Multi-User Engine Execution** | **PASS** | Executed live tests 1, 2, 3 in SQL Editor | Real UUIDs tested: student isolation, session lock & admin view access verified. |
-| **Live Google OAuth Authentication** | **PENDING** | External Client ID / Secret required | Static contract verified; live OAuth requires staging project. |
+| **Live Google OAuth Configuration** | **PASS** | GoTrue Auth settings verified | Google provider enabled (`external.google: true`), 302 redirect verified. |
 
 ---
 
@@ -179,7 +179,12 @@ Execute [`supabase/tests/RLS_RPC_INTEGRATION_TEST_PLAN.md`](file:///C:/Users/msi
 4. **Test 4:** Student attempting to query admin analytics views (verify 0 rows returned).
 5. **Test 5:** Admin querying admin analytics views (verify data returned).
 
-### Phase 4: Google OAuth & Live Browser Testing
+### Phase 4: Google OAuth Configuration (Completed)
+- Client ID & Secret configured in Supabase Auth.
+- Staging project URL and Publishable Key connected in `js/config.js`.
+- Live GoTrue Auth settings test verified `external.google: true`.
+
+### Phase 5: Live Browser Testing & Telemetry
 1. Configure Google OAuth Provider in Supabase Dashboard (Client ID & Secret).
 2. Set callback URL: `https://<PROJECT_ID>.supabase.co/auth/v1/callback`.
 3. Put public Staging URL and anon key into [`js/config.js`](file:///C:/Users/msi/.gemini/antigravity/scratch/electronics-2nd-year-materials/js/config.js).
