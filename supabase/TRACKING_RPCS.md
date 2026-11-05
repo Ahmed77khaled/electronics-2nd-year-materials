@@ -14,6 +14,7 @@ Apply these files in order in a dedicated development/staging Supabase project:
 6. `006_backend_security_hardening.sql`
 7. `007_admin_analytics_metric_accuracy.sql`
 8. `008_anonymous_visitor_analytics.sql`
+9. `009_portal_launch_reset_and_authenticated_entry.sql` (one-time production launch rollover)
 
 Do not expose the admin analytics views until migration 005 has been applied.
 
@@ -127,15 +128,19 @@ Migrations 004 and 005 create the aggregate analytics views. Migration 005 adds 
 analytics views. Authenticated non-admin users receive no rows. Admin membership must be granted
 manually by a trusted project owner; there is no first-user-is-admin behavior.
 
-## Anonymous visitor tracking (migration 008)
+## Login-gate arrival analytics (migration 008)
 
-Signed-out page loads create an anonymous visitor record and record a `page_view` immediately; the visitor does not need to click first. The browser keeps a random visitor UUID in local storage and a random per-tab session UUID in session storage. When a tab session is closed or the page is refreshed, the old session is ended best-effort and the tab key is rotated before navigation. A refresh therefore records another page view and a new session while retaining the same pseudonymous visitor key.
+A signed-out page load is recorded as a visit to the mandatory Google sign-in screen only. It is not a view of course content, does not count as a student login, and earns no active browsing time. The tracker closes the short-lived anonymous technical session immediately after writing the gate-view event.
 
-Anonymous tracking uses separate `anonymous_visitors`, `anonymous_sessions`, and `anonymous_activity_events` tables. It never writes to the identified student `profiles`, `sessions`, or `activity_events` tables. If a Supabase user is signed in, the anonymous tracking RPC rejects new anonymous writes and the existing authenticated tracker remains responsible for that user's activity.
+The browser keeps a random visitor UUID in local storage, allowing repeat arrivals from the same browser to be grouped. Anonymous data remains isolated in `anonymous_visitors`, `anonymous_sessions`, and `anonymous_activity_events`; it is never joined to a Google account or copied into identified student activity.
 
-The anonymous RPCs enforce an event allowlist, the same compact property allowlist as identified tracking, resource/course validation, sanitized page paths, and a basic per-visitor write throttle. Direct table reads/writes are unavailable to `anon`; only the RPCs can write. Authenticated admins can read the admin summary through the RLS-protected view.
+The anonymous RPCs enforce an event allowlist, compact property allowlist, sanitized paths, rate limits, and RLS-protected administrator reads. The anonymous record is an approximate browser identifier, not a verified person. Clearing browser site data or changing browser/device creates a new identifier.
 
-Anonymous identities are pseudonymous browser identifiers, not verified people. Clearing browser site data or using another browser/device creates a different visitor key. Active-time estimates remain best-effort and must not be treated as proof of attention.
+## Authenticated entry analytics and launch rollover (migration 009)
+
+After Google sign-in succeeds, the authenticated RPC records `login_success` and the first authenticated `page_view` using `auth.uid()` from the database session. These entry events do not create an engagement session or credit active time. A tracked engagement session begins only after the student interacts with portal content.
+
+Migration 009 archives existing student and anonymous telemetry into the restricted `analytics_archive` schema, then clears only the live tracking tables and resets profile activity timestamps. It preserves Supabase Auth accounts, student profiles, admin membership, courses, resources, and all resource links. The archival rollover is guarded by a fixed key so rerunning the migration cannot clear post-launch tracking data a second time. Apply this migration once at the chosen launch moment after confirming the archive and preservation requirements.
 
 ## Security properties and limitations
 
@@ -147,5 +152,5 @@ Anonymous identities are pseudonymous browser identifiers, not verified people. 
 - Drive/YouTube time is not measured or credited as portal active time.
 - Visibility, focus, and idle checks are best-effort client signals, not proof of human attention.
 - Migrations and SQL role-simulation tests must be run in staging before production.
-- Live Supabase verification reported on 2026-11-05 confirmed that migration 007 was already present, migration 008 was applied, the anonymous tables/RPCs/admin summary view were available, direct anonymous table reads were denied, and guest/authenticated-user RPC scenarios behaved as expected.
-- The frontend feature branch has not yet been merged or deployed to GitHub Pages; applying database migrations does not publish the website code.
+- Live Supabase verification reported on 2026-11-05 confirmed migrations 007 and 008 were present/applied and the existing anonymous RPC flows passed their live checks. Migration 009 has not yet been applied to production.
+- The current feature branch still requires CI/review, migration 009 application, and GitHub Pages deployment before the refreshed analytics become live.

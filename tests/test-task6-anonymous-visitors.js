@@ -81,6 +81,8 @@ testCase('Tracker attempts anonymous page_view on page load and persists only ra
   assert(tracker.includes('function initializeAnonymousTracking()'));
   assert(tracker.includes('initializeAnonymousTracking();'));
   assert(tracker.includes("event_name: 'page_view'"));
+  assert(tracker.includes("source: 'login_gate'"));
+  assert(tracker.includes("pauseAnonymousSession('login-gate-view-recorded'"));
   assert(tracker.includes('portal_anonymous_visitor_key'));
   assert(tracker.includes('portal_anonymous_session_id'));
   assert(tracker.includes('sendAnonymousHeartbeat'));
@@ -96,9 +98,9 @@ testCase('Admin dashboard exposes anonymous visitor KPIs, list page, and CSV rep
   assert(contract.includes("'getAnonymousVisitors'"));
   assert(adapter.includes('async function getAnonymousVisitors('));
   assert(adapter.includes("if (type === 'visitors')"));
-  assert(app.includes("['anonymousVisitors', 'الزوار بدون تسجيل (الفترة)'"));
-  assert(app.includes("['visitors', 'الزوار بدون تسجيل'"));
-  assert(app.includes("['visitors', 'تقرير الزوار بدون تسجيل'"));
+  assert(app.includes("['anonymousVisitors', 'متصفحات وصلت لشاشة تسجيل الدخول'"));
+  assert(app.includes("['visitors', 'زيارات شاشة الدخول'"));
+  assert(app.includes("['visitors', 'تقرير زيارات شاشة تسجيل الدخول'"));
   assert(mock.includes('getAnonymousVisitors: function'));
 });
 
@@ -173,6 +175,8 @@ testCase('Browser harness records a guest page view immediately without a click'
   assert.strictEqual(calls.start, 1, 'A guest page load should start one anonymous session');
   assert(calls.events.some((x) => x.event.event_name === 'page_view'), 'A page_view must be written at load');
   assert.strictEqual(calls.events[0].visitorKey, visitorUuid);
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.strictEqual(calls.end, 1, 'The login-gate visit session must close after its event is stored');
   fakeWindow.PortalTracker.stopHeartbeat();
 });
 

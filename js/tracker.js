@@ -34,6 +34,9 @@
   var anonymousLifecycleGeneration = 0;
   var anonymousHeartbeatPromise = null;
   var anonymousPageViewRecorded = false;
+  var authenticatedPageViewRecorded = false;
+  var authenticatedLoginRecorded = false;
+  var authenticatedEntryQueue = Promise.resolve();
   var sessionStartPromise = null;
   var sessionStartGeneration = -1;
   var sessionClosePromise = null;
@@ -446,13 +449,11 @@
     var result = await bridge.trackAnonymousVisitorEvent({
       event_name: 'page_view',
       page_path: (root.location && root.location.pathname) || '/',
-      properties: { source: 'page_load' }
+      properties: { source: 'login_gate' }
     }, anonymousVisitorKey, anonymousClientSessionId);
 
     if (result && result.success) {
       anonymousPageViewRecorded = true;
-      lastInteractionTime = Date.now();
-      lastMeaningfulInteractionTime = lastInteractionTime;
       dispatchLocalTelemetry({
         event_name: 'page_view',
         user_id: null,
@@ -460,18 +461,71 @@
         visitor_key: anonymousVisitorKey,
         page_path: (root.location && root.location.pathname) || '/',
         occurred_at: new Date().toISOString(),
-        properties: { source: 'page_load' }
+        properties: { source: 'login_gate' }
       });
+      // A guest can only see the mandatory login gate. Close this technical
+      // visit session immediately; never credit it as active portal time.
+      pauseAnonymousSession('login-gate-view-recorded', 0, false);
     } else if (root.APP_CONFIG && root.APP_CONFIG.analytics && root.APP_CONFIG.analytics.debug) {
-      console.warn('[PortalTracker] Anonymous page view was not recorded:', result && (result.reason || result.error));
+      console.warn('[PortalTracker] Login-gate view was not recorded:', result && (result.reason || result.error));
     }
   }
 
-  function initializeAnonymousTracking() {
-    // Start on page load (not on first click), but only for a signed-out visitor.
-    recordAnonymousPageView().catch(function(err) {
+  function recordAuthenticatedEntry(isFreshSignIn) {
+    authenticatedEntryQueue = authenticatedEntryQueue.then(async function() {
+      var bridge = root.SupabaseBridge;
+      if (!bridge || typeof bridge.getCurrentUser !== 'function' ||
+          typeof bridge.trackAuthenticatedPortalEvent !== 'function') return false;
+      var user = await bridge.getCurrentUser();
+      if (!user || !user.id) return false;
+      var path = (root.location && root.location.pathname) || '/';
+
+      async function write(eventName) {
+        var result = await bridge.trackAuthenticatedPortalEvent(eventName, path);
+        if (result && result.success) {
+          dispatchLocalTelemetry({
+            event_name: eventName,
+            user_id: user.id,
+            session_id: null,
+            page_path: path,
+            occurred_at: new Date().toISOString(),
+            properties: { source: eventName === 'login_success' ? 'google_sign_in' : 'authenticated_page_load' }
+          });
+          return true;
+        }
+        if (root.APP_CONFIG && root.APP_CONFIG.analytics && root.APP_CONFIG.analytics.debug) {
+          console.warn('[PortalTracker] Authenticated entry event was not recorded:', eventName,
+            result && (result.reason || result.error));
+        }
+        return false;
+      }
+
+      if (isFreshSignIn && !authenticatedLoginRecorded) {
+        authenticatedLoginRecorded = await write('login_success');
+      }
+      if (!authenticatedPageViewRecorded) {
+        authenticatedPageViewRecorded = await write('page_view');
+      }
+      return authenticatedPageViewRecorded;
+    }).catch(function(err) {
       if (root.APP_CONFIG && root.APP_CONFIG.analytics && root.APP_CONFIG.analytics.debug) {
-        console.warn('[PortalTracker] Anonymous visitor initialization failed:', err);
+        console.warn('[PortalTracker] Authenticated entry initialization failed:', err);
+      }
+      return false;
+    });
+    return authenticatedEntryQueue;
+  }
+
+  function initializeAnonymousTracking() {
+    // Before authentication, only the mandatory login gate is visible.
+    var bridge = root.SupabaseBridge;
+    if (!bridge || typeof bridge.getCurrentUser !== 'function') return;
+    bridge.getCurrentUser().then(function(user) {
+      if (user && user.id) return recordAuthenticatedEntry(false);
+      return recordAnonymousPageView();
+    }).catch(function(err) {
+      if (root.APP_CONFIG && root.APP_CONFIG.analytics && root.APP_CONFIG.analytics.debug) {
+        console.warn('[PortalTracker] Initial portal-entry tracking failed:', err);
       }
     });
   }
@@ -604,11 +658,20 @@
       root.SupabaseBridge.onAuthStateChange(function(event, session) {
         if (event === 'SIGNED_OUT') {
           pauseDatabaseSession('signed-out', lastInteractionTime, false);
-        } else {
-          pauseAnonymousSession('signed-in', lastInteractionTime, false);
-          // Do not auto-start identified time on auth refresh. The next user
-          // interaction creates the authenticated session baseline.
+          authenticatedPageViewRecorded = false;
+          authenticatedLoginRecorded = false;
           lastInteractionTime = 0;
+          pauseAnonymousSession('signed-out', 0, false).then(function() {
+            anonymousPageViewRecorded = false;
+            initializeAnonymousTracking();
+          });
+        } else if (session && session.user) {
+          pauseAnonymousSession('signed-in', lastInteractionTime, false);
+          // Entry events are separate from usage sessions. Time is counted
+          // only after the student's first real portal-content interaction.
+          lastInteractionTime = 0;
+          if (event === 'SIGNED_IN') recordAuthenticatedEntry(true);
+          else if (event === 'INITIAL_SESSION') recordAuthenticatedEntry(false);
         }
       });
     }
