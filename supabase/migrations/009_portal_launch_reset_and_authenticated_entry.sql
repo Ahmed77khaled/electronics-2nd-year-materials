@@ -155,6 +155,7 @@ select
   coalesce(e.course_visit_count, 0)::bigint as course_visit_count,
   coalesce(e.resource_click_count, 0)::bigint as resource_click_count,
   e.first_activity_at,
+  coalesce(e.page_view_count, 0)::bigint as page_view_count,
   p.last_login_at
 from public.profiles p
 left join (
@@ -172,7 +173,8 @@ left join (
     count(*) filter (
       where event_name in ('resource_click', 'youtube_click', 'folder_link_clicked')
     ) as resource_click_count,
-    min(occurred_at) as first_activity_at
+    min(occurred_at) as first_activity_at,
+    count(*) filter (where event_name = 'page_view') as page_view_count
   from public.activity_events
   group by user_id
 ) e on e.user_id = p.id

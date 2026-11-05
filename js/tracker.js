@@ -535,23 +535,9 @@
       }
     }
 
-    if (!userId && wasActiveAtDispatch && bridge && typeof bridge.trackAnonymousVisitorEvent === 'function') {
-      var anonymousSessionId = await ensureAnonymousDatabaseSession();
-      if (!anonymousSessionId) return { success: false, reason: 'no_anonymous_session' };
-      fullPayload.session_id = anonymousSessionId;
-      fullPayload.visitor_key = anonymousVisitorKey;
-      try {
-        var anonymousResult = await bridge.trackAnonymousVisitorEvent(fullPayload, anonymousVisitorKey, anonymousClientSessionId);
-        if (debugMode && anonymousResult && !anonymousResult.success) {
-          console.warn('[Anonymous Telemetry Sync Warning]', anonymousResult.reason || anonymousResult.error || 'unknown');
-        }
-        return anonymousResult;
-      } catch (err) {
-        if (debugMode) console.warn('[Anonymous Telemetry Sync Warning]', err);
-        return { success: false, error: err };
-      }
-    }
-    return { success: false, reason: userId ? 'no_active_session' : 'unauthenticated_user_skipped' };
+    // The mandatory login gate is the only anonymous experience. Do not
+    // attribute hidden portal controls or resource interactions to guests.
+    return { success: false, reason: userId ? 'no_active_session' : 'login_gate_only' };
   }
 
   // Count the full asynchronous dispatch (including auth lookup and session
@@ -616,7 +602,7 @@
 
     if (root.SupabaseBridge && typeof root.SupabaseBridge.onAuthStateChange === 'function') {
       root.SupabaseBridge.onAuthStateChange(function(event, session) {
-        if (event === 'SIGNED_OUT' || !session || !session.user) {
+        if (event === 'SIGNED_OUT') {
           pauseDatabaseSession('signed-out', lastInteractionTime, false);
         } else {
           pauseAnonymousSession('signed-in', lastInteractionTime, false);
