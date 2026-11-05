@@ -23,8 +23,8 @@
 | **Admin Analytics Authorization** | **PASS** | Views use `security_invoker` + `is_admin()` filter | Static definition ensures non-admins receive 0 rows. |
 | **RLS / RPC Integration Test Plan Structure** | **PASS** | `RLS_RPC_INTEGRATION_TEST_PLAN.md` verified | Transactional test blocks with `ROLLBACK` prepared for staging. |
 | **GitHub Actions CI Workflow** | **PASS** | Workflow run [#41937758613](https://github.com/Ahmed77khaled/electronics-2nd-year-materials/actions/runs/41937758613) | Completed with status `Success` on Ubuntu runner. |
-| **Live Database Migrations Execution** | **PENDING** | Docker/Supabase CLI/psql absent locally | Requires live execution on Supabase Staging SQL Editor. |
-| **Live RLS Multi-User Engine Execution** | **PENDING** | Static test plan prepared, live run pending | Requires executing test plan transactions against live PostgreSQL. |
+| **Live Database Migrations Execution** | **PASS** | Executed on `electronics-materials-staging` | Migrations 001–005 applied: 7 courses, 75 resources verified. |
+| **Live RLS Multi-User Engine Execution** | **PASS** | Executed live tests 1, 2, 3 in SQL Editor | Real UUIDs tested: student isolation, session lock & admin view access verified. |
 | **Live Google OAuth Authentication** | **PENDING** | External Client ID / Secret required | Static contract verified; live OAuth requires staging project. |
 
 ---
@@ -191,7 +191,7 @@ Execute [`supabase/tests/RLS_RPC_INTEGRATION_TEST_PLAN.md`](file:///C:/Users/msi
 
 * **Code & CI Foundation:** **VERIFIED (PASS)**. Zero syntax issues, 34/34 automated tests passing, CI green on GitHub Actions runner.
 * **Telemetry & Logic Hardening:** **VERIFIED (PASS)**. Database session IDs passed correctly; heartbeat paused during external navigation.
-* **Staging Execution:** **PENDING**. Live PostgreSQL migrations and multi-user RLS testing await execution on a dedicated Supabase staging project.
+* **Staging Database & RLS Execution:** **VERIFIED (PASS)**. Migrations 001–005 applied and multi-user RLS/RPC test suite (Tests 1, 2, 3) passed 100% on dedicated Supabase staging project.
 * **Production Status:** **NOT YET DECLARED**. In accordance with strict software engineering practice, production readiness will be evaluated only after Staging live verification (Phases 2–5) is completed.
 * **Git Status:** All work remains strictly isolated on `feature/resource-registry-supabase`. The `main` branch and live deployment remain untouched.
 
