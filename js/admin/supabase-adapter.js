@@ -106,7 +106,7 @@
     var constraints = await resolveEventFilters(client, filters);
     if (constraints.impossible) return [];
     return fetchAllRows(function () {
-      return buildEventQuery(client, filters, constraints, false).order('occurred_at', { ascending: true });
+      return buildEventQuery(client, filters, constraints, false).order('occurred_at', { ascending: true }).order('id', { ascending: true });
     });
   }
 
@@ -475,7 +475,7 @@
     var f = filters || {};
     var rows = await fetchAllRows(function () {
       return addDateRange(
-        client.from('admin_session_analytics').select('*').eq('user_id', userId),
+        client.from('admin_session_analytics').select('*').eq('user_id', userId).order('started_at', { ascending: true }).order('id', { ascending: true }),
         f, 'started_at'
       );
     });
@@ -780,7 +780,7 @@
         fetchAllRows(function () { return client.from('admin_student_summary').select('*').order('registered_at', { ascending: false }).order('user_id', { ascending: true }); }),
         fetchFilteredEvents(client, f),
         fetchAllRows(function () {
-          return addDateRange(client.from('admin_session_analytics').select('user_id, active_seconds, started_at'), f, 'started_at');
+          return addDateRange(client.from('admin_session_analytics').select('user_id, active_seconds, started_at').order('started_at', { ascending: true }).order('id', { ascending: true }), f, 'started_at');
         })
       ]);
       var activityByUser = {}, sessionsByUser = {};
