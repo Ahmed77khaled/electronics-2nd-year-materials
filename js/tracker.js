@@ -41,7 +41,7 @@
   var lastInteractionTime = 0;
   var lastMeaningfulInteractionTime = 0;
   var heartbeatInterval = null;
-  var IDLE_TIMEOUT_MS = 45000;
+  var IDLE_TIMEOUT_MS = 180000;
   var PAUSE_GRACE_MS = 250;
   var MAX_TRACKING_DRAIN_MS = 1500;
 
@@ -58,7 +58,6 @@
   function isForeground() {
     if (typeof document !== 'undefined') {
       if (document.visibilityState && document.visibilityState !== 'visible') return false;
-      if (typeof document.hasFocus === 'function' && !document.hasFocus()) return false;
     }
     return true;
   }
@@ -234,6 +233,7 @@
   }
 
   function schedulePause(reason) {
+    if (reason === 'window-blur' && typeof document !== 'undefined' && document.visibilityState === 'visible') return;
     // Stop accruing time immediately. The short grace period allows a just-fired
     // resource click RPC to finish before the session-end RPC closes the session.
     var interactionAtPause = lastInteractionTime;
