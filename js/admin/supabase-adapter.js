@@ -114,7 +114,8 @@
     var totalSessionsCount = toNullableNumber(metrics.total_sessions);
     var totalSecondsSum = toNullableNumber(metrics.total_active_seconds);
     var resourceClicksSum = toNullableNumber(metrics.total_resource_clicks);
-    var pageViewsSum = toNullableNumber(metrics.total_page_views);
+    // The tracker does not currently emit page_view events; do not invent a count.
+    var pageViewsSum = null;
 
     var activeTodayCount = toNullableNumber(metrics.active_students_24h);
     var activeWeekCount = toNullableNumber(metrics.active_students_7d);
@@ -221,7 +222,7 @@
         email: s.email,
         avatarUrl: s.avatar_url,
         registeredAt: s.registered_at,
-        lastLoginAt: s.last_login_at || null,
+        lastLoginAt: null,
         lastActiveAt: s.last_active_at,
         sessions: Number(s.session_count || 0),
         totalSeconds: Number(s.total_active_seconds || 0),
@@ -290,7 +291,7 @@
       email: s.email,
       avatarUrl: s.avatar_url,
       registeredAt: s.registered_at,
-      lastLoginAt: s.last_login_at || null,
+      lastLoginAt: null,
       lastActiveAt: s.last_active_at,
       sessions: Number(s.session_count || 0),
       totalSeconds: Number(s.total_active_seconds || 0),
@@ -303,7 +304,7 @@
       stats: {
         sessions: user.sessions,
         totalSeconds: user.totalSeconds,
-        pageViews: toNullableNumber(s.page_view_count),
+        pageViews: null,
         courseVisits: toNullableNumber(s.course_visit_count),
         resourceClicks: toNullableNumber(s.resource_click_count),
         firstActivityAt: s.first_activity_at || null,
@@ -545,11 +546,11 @@
     if (type === 'users') {
       var uRes = await client.from('admin_student_summary').select('*');
       var uItems = uRes.data || [];
-      csv = 'User ID,Name,Email,Sessions,Total Seconds,Page Views,Course Visits,Resource Clicks,Registered At,First Activity,Last Login,Last Active At\n' +
+      csv = 'User ID,Name,Email,Sessions,Total Seconds,Course Visits,Resource Clicks,Registered At,First Activity,Last Active At\n' +
         uItems.map(function(s) {
           return [s.user_id, '"' + (s.full_name || '') + '"', s.email, s.session_count, s.total_active_seconds,
-            s.page_view_count, s.course_visit_count, s.resource_click_count, s.registered_at,
-            s.first_activity_at, s.last_login_at, s.last_active_at].join(',');
+            s.course_visit_count, s.resource_click_count, s.registered_at,
+            s.first_activity_at, s.last_active_at].join(',');
         }).join('\n');
     } else if (type === 'courses') {
       var cRes = await client.from('admin_course_analytics').select('*').order('course_visit_count', { ascending: false });

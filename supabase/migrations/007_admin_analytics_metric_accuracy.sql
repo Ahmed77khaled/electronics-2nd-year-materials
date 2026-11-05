@@ -26,11 +26,9 @@ select
   p.last_active_at,
   coalesce(s.session_count, 0)::bigint as session_count,
   coalesce(s.active_seconds, 0)::bigint as total_active_seconds,
-  coalesce(e.page_view_count, 0)::bigint as page_view_count,
   coalesce(e.course_visit_count, 0)::bigint as course_visit_count,
   coalesce(e.resource_click_count, 0)::bigint as resource_click_count,
-  e.first_activity_at,
-  e.last_login_at
+  e.first_activity_at
 from public.profiles p
 left join (
   select
@@ -43,13 +41,11 @@ left join (
 left join (
   select
     user_id,
-    count(*) filter (where event_name = 'page_view') as page_view_count,
     count(*) filter (where event_name = 'course_click') as course_visit_count,
     count(*) filter (
       where event_name in ('resource_click', 'youtube_click', 'folder_link_clicked')
     ) as resource_click_count,
-    min(occurred_at) as first_activity_at,
-    max(occurred_at) filter (where event_name = 'login_success') as last_login_at
+    min(occurred_at) as first_activity_at
   from public.activity_events
   group by user_id
 ) e on e.user_id = p.id
@@ -59,8 +55,8 @@ revoke all on public.admin_student_summary from public, anon;
 grant select on public.admin_student_summary to authenticated;
 
 -- ---------------------------------------------------------------------------
--- Overview metrics: add a true page-view counter (and course-visit counter
--- for future use) without reordering existing columns.
+-- Overview metrics: preserve the existing totals and add a recorded
+-- course-visit counter without reordering existing columns.
 -- ---------------------------------------------------------------------------
 create or replace view public.admin_overview_metrics
 with (security_invoker = true, security_barrier = true)
@@ -80,8 +76,6 @@ select
   (select coalesce(sum(active_seconds), 0) from public.sessions) as total_active_seconds,
   (select count(*) from public.activity_events
     where event_name in ('resource_click', 'youtube_click', 'folder_link_clicked')) as total_resource_clicks,
-  (select count(*) from public.activity_events
-    where event_name = 'page_view') as total_page_views,
   (select count(*) from public.activity_events
     where event_name = 'course_click') as total_course_visits
 where (select public.is_admin());

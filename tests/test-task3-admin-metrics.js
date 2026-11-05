@@ -9,31 +9,36 @@ const root = path.join(__dirname, '..');
 const adapter = fs.readFileSync(path.join(root, 'js', 'admin', 'supabase-adapter.js'), 'utf8');
 const migration = fs.readFileSync(path.join(root, 'supabase', 'migrations', '007_admin_analytics_metric_accuracy.sql'), 'utf8');
 const workflow = fs.readFileSync(path.join(root, '.github', 'workflows', 'portal-tests.yml'), 'utf8');
+const tracker = fs.readFileSync(path.join(root, 'js', 'tracker.js'), 'utf8');
 
 const tests = [];
 function testCase(name, fn) {
   tests.push({ name, fn });
 }
 
-testCase('Overview page views use the dedicated page_view metric', function () {
+testCase('Page views stay unavailable until page_view tracking is implemented', function () {
   assert(adapter.includes('pageViews: pageViewsSum'));
-  assert(adapter.includes('metrics.total_page_views'));
-  assert(!/pageViews:\s*Number\(metrics\.total_resource_clicks/.test(adapter));
+  assert(adapter.includes('var pageViewsSum = null;'));
+  assert(!adapter.includes('metrics.total_page_views'));
+  assert(!migration.includes('total_page_views'));
+  assert(!/dispatchEvent\s*\(\s*['"]page_view['"]/.test(tracker));
 });
 
 testCase('User activity counts are read from per-user event aggregates', function () {
-  assert(adapter.includes('s.page_view_count'));
   assert(adapter.includes('s.course_visit_count'));
   assert(adapter.includes('s.resource_click_count'));
   assert(adapter.includes('s.first_activity_at'));
+  assert(adapter.includes('pageViews: null'));
+  assert(!adapter.includes('s.last_login_at'));
   assert(!adapter.includes('Math.round(user.sessions * 2.5)'));
   assert(!adapter.includes('Math.round(user.sessions * 1.8)'));
   assert(!/resourceClicks:\s*Number\(s\.session_count/.test(adapter));
 });
 
-testCase('Last login is sourced from login_success events, not last_active_at', function () {
-  assert(adapter.includes('lastLoginAt: s.last_login_at || null'));
-  assert(migration.includes("max(occurred_at) filter (where event_name = 'login_success') as last_login_at"));
+testCase('Last login remains unavailable until login_success tracking is implemented', function () {
+  assert(adapter.includes('lastLoginAt: null'));
+  assert(!migration.includes('last_login_at'));
+  assert(!/dispatchEvent\s*\(\s*['"]login_success['"]/.test(tracker));
 });
 
 testCase('Course visits count course_click events only', function () {
