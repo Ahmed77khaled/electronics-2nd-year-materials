@@ -19,7 +19,7 @@
   'use strict';
 
   var REQUIRED = [
-    'checkAccess', 'getOverview', 'getUsers', 'getUserDetails', 'getUserSessions', 'getSessions',
+    'checkAccess', 'getOverview', 'getUsers', 'getAnonymousVisitors', 'getUserDetails', 'getUserSessions', 'getSessions',
     'getSessionDetails', 'getActivityEvents', 'getCourseAnalytics', 'getResourceAnalytics', 'exportReport'
   ];
   var OPTIONAL = ['getFilterOptions', 'signOut'];
