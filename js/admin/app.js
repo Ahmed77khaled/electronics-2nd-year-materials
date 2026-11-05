@@ -2,7 +2,10 @@
 (function (root) {
   'use strict';
   var U = root.AdminUI, D = root.AdminData, esc = U.esc, DAY = 86400000;
-  var main, view = { retry: null };
+  var main;
+  var routeVersion = 0;
+  var ADMIN_LOADING_TIMEOUT_MS = 15000;
+  var ADMIN_REPORT_TIMEOUT_MS = 20000;
   var state = { preset: '30d', from: '', to: '', options: { courses: [] }, access: null };
   var vs = {};               // per-view state (filters, page, sort)
 
@@ -84,13 +87,82 @@
   function pageHead(title, sub, actions) {
     return '<div class="page-head"><div><h2>' + esc(title) + '</h2><p class="muted">' + (sub || 'الفترة: ' + esc(rangeLabel())) + '</p></div>' + (actions || '') + '</div>';
   }
-  function guard(el, promise, render, retry) {
-    view.retry = retry;
-    return promise.then(render).catch(function (err) {
-      if (el.isConnected === false) return;
-      el.innerHTML = U.errorState(err, 'x');
-      if (root.console && err && err.code !== 'UNAVAILABLE') console.error(err);
+  function guard(el, promise, render, retry, isRequestCurrent, timeoutMs) {
+    if (!el) return Promise.resolve();
+    var startedOnRoute = routeVersion;
+    var requestId = (el._adminRequestId || 0) + 1;
+    var ms = Number(timeoutMs);
+    if (!isFinite(ms) || ms <= 0) ms = ADMIN_LOADING_TIMEOUT_MS;
+    el._adminRequestId = requestId;
+    var timer = null;
+
+    function cleanupTimer() {
+      if (timer !== null) { clearTimeout(timer); timer = null; }
+    }
+    function canUpdate() {
+      return el.isConnected !== false &&
+        startedOnRoute === routeVersion &&
+        el._adminRequestId === requestId &&
+        (typeof isRequestCurrent !== 'function' || isRequestCurrent());
+    }
+    function showError(err) {
+      if (!canUpdate()) return;
+      el._retry = typeof retry === 'function' ? retry : null;
+      el.innerHTML = U.errorState(err, 'retry');
+      if (root.console && err && err.code !== 'UNAVAILABLE' && root.console.error) {
+        root.console.error('[AdminUI] Request failed:', err);
+      }
+    }
+
+    var timeoutPromise = new Promise(function (_, reject) {
+      timer = setTimeout(function () {
+        var error = new Error('استغرق تحميل البيانات وقتًا أطول من المتوقع. يمكنك المحاولة مرة أخرى.');
+        error.code = 'TIMEOUT';
+        reject(error);
+      }, ms);
     });
+
+    return Promise.race([Promise.resolve(promise), timeoutPromise])
+      .then(function (data) {
+        cleanupTimer();
+        if (!canUpdate()) return;
+        return render(data);
+      })
+      .catch(function (error) {
+        cleanupTimer();
+        showError(error);
+      });
+  }
+
+  function withTimeout(promise, timeoutMs, message) {
+    var timer = null;
+    var timeoutPromise = new Promise(function (_, reject) {
+      timer = setTimeout(function () {
+        var error = new Error(message || 'استغرق تحميل البيانات وقتًا أطول من المتوقع.');
+        error.code = 'TIMEOUT';
+        reject(error);
+      }, timeoutMs);
+    });
+    return Promise.race([Promise.resolve(promise), timeoutPromise]).then(function (value) {
+      if (timer !== null) clearTimeout(timer);
+      timer = null;
+      return value;
+    }, function (error) {
+      if (timer !== null) clearTimeout(timer);
+      timer = null;
+      throw error;
+    });
+  }
+
+  function handleRetryClick(event) {
+    var target = event && event.target;
+    var button = target && typeof target.closest === 'function' ? target.closest('[data-retry]') : null;
+    if (!button) return false;
+    if (event.preventDefault) event.preventDefault();
+    var errorState = button.closest('.state-err');
+    var container = errorState && errorState.parentElement;
+    if (container && typeof container._retry === 'function') container._retry();
+    return true;
   }
   function timeline(items) {
     if (!items.length) return U.empty('لا توجد أحداث مسجّلة');
@@ -141,7 +213,7 @@
           res.innerHTML = '<div class="card flush">' + U.table(cfg.cols, r.items, { sort: s.sort, clickable: !!cfg.href, rowAttr: cfg.href ? function (x) { return 'data-href="' + esc(cfg.href(x)) + '" tabindex="0"'; } : null }) + U.pager(r.total, s.page, s.pageSize) + '</div>';
           qa('[data-sort]', res).forEach(function (b) { b.addEventListener('click', function () { var f = b.getAttribute('data-sort'); s.sort = { field: f, dir: s.sort.field === f && s.sort.dir === 'desc' ? 'asc' : 'desc' }; s.page = 1; load(); }); });
           qa('[data-page]', res).forEach(function (b) { b.addEventListener('click', function () { s.page = +b.getAttribute('data-page'); load(); }); });
-        }, load);
+        }, load, function () { return id === s.req; });
       }
       bindToolbar(s, load, cfg.defaults); load();
     };
@@ -193,8 +265,10 @@
 
   function userDetail(id) {
     main.innerHTML = '<a class="back" href="#/users">' + U.icon('back') + ' كل المستخدمين</a>' + U.skeleton('x') + U.skeleton('table');
-    var s = { page: 1, pageSize: 10, sort: { field: 'startedAt', dir: 'desc' }, tl: 1, tlItems: [] };
+    var s = { page: 1, pageSize: 10, sort: { field: 'startedAt', dir: 'desc' }, tl: 1, tlItems: [], tlTotal: 0 };
+
     guard(main, D.call('getUserDetails', id), function (r) {
+      r = r || {};
       var u = r.user || {}, st = r.stats || {};
       var kv = function (k, v) { return '<div class="kv"><span>' + k + '</span><strong>' + v + '</strong></div>'; };
       var avg = st.sessions ? st.totalSeconds / st.sessions : null;
@@ -204,28 +278,82 @@
         '<section class="card"><h3 class="card-t">إحصاءات التفاعل</h3><div class="kvs">' + kv('إجمالي الجلسات', U.num(st.sessions)) + kv('إجمالي الوقت', U.dur(st.totalSeconds)) + kv('متوسط مدة الجلسة', U.dur(avg)) + kv('الصفحات المفتوحة', U.num(st.pageViews)) + kv('زيارات المواد', U.num(st.courseVisits)) + kv('ضغطات الموارد', U.num(st.resourceClicks)) + kv('أول نشاط', U.dateTime(st.firstActivityAt)) + kv('آخر نشاط', U.dateTime(st.lastActiveAt || u.lastActiveAt)) + '</div></section></div>' +
         '<section class="card flush"><h3 class="card-t pad">سجل الجلسات</h3><div id="u-sessions"></div></section>' +
         '<section class="card"><h3 class="card-t">الخط الزمني للنشاط</h3><div id="u-tl"></div></section>';
-      loadSessions(); loadTimeline(true);
+      loadSessions();
+      loadTimeline(true);
     }, function () { userDetail(id); });
 
     function loadSessions() {
-      var el = $('u-sessions'); el.innerHTML = U.skeleton('x');
-      D.call('getUserSessions', id, {}, { page: s.page, pageSize: s.pageSize, sort: s.sort }).then(function (r) {
-        if (!r.items || !r.items.length) { el.innerHTML = U.empty('لا توجد جلسات مسجّلة'); return; }
-        el.innerHTML = U.table(sessionCols(false), r.items, { clickable: true, rowAttr: function (x) { return 'data-href="#/sessions/' + encodeURIComponent(x.id) + '" tabindex="0"'; } }) + U.pager(r.total, s.page, s.pageSize);
-        qa('[data-page]', el).forEach(function (b) { b.addEventListener('click', function () { s.page = +b.getAttribute('data-page'); loadSessions(); }); });
-      }).catch(function (e) { el.innerHTML = U.errorState(e, 'x'); view.retry = loadSessions; });
+      var el = $('u-sessions');
+      if (!el) return;
+      el.innerHTML = U.skeleton('x');
+      guard(el, D.call('getUserSessions', id, {}, {
+        page: s.page, pageSize: s.pageSize, sort: s.sort
+      }), function (r) {
+        var items = r && Array.isArray(r.items) ? r.items : [];
+        if (!items.length) { el.innerHTML = U.empty('لا توجد جلسات مسجّلة'); return; }
+        el.innerHTML = U.table(sessionCols(false), items, {
+          clickable: true,
+          rowAttr: function (x) { return 'data-href="#/sessions/' + encodeURIComponent(x.id) + '" tabindex="0"'; }
+        }) + U.pager(Number(r.total) || items.length, s.page, s.pageSize);
+        qa('[data-page]', el).forEach(function (button) {
+          button.addEventListener('click', function () {
+            s.page = Number(button.getAttribute('data-page')) || 1;
+            loadSessions();
+          });
+        });
+      }, loadSessions);
     }
-    function loadTimeline(first) {
-      var el = $('u-tl'); if (first) el.innerHTML = U.skeleton('x');
-      D.call('getActivityEvents', { userId: id }, { page: s.tl, pageSize: 20, sort: { field: 'occurredAt', dir: 'desc' } }).then(function (r) {
-        s.tlItems = s.tlItems.concat(r.items || []);
-        el.innerHTML = timeline(s.tlItems) + (s.tlItems.length < r.total ? '<button type="button" class="btn" id="tl-more">تحميل المزيد</button>' : '');
-        var m = $('tl-more'); if (m) m.addEventListener('click', function () { s.tl++; m.disabled = true; loadTimeline(false); });
-      }).catch(function (e) { el.innerHTML = U.errorState(e, 'x'); view.retry = function () { loadTimeline(true); }; });
+
+    function renderTimeline() {
+      var el = $('u-tl');
+      if (!el) return;
+      var hasMore = s.tlItems.length < s.tlTotal;
+      el.innerHTML = timeline(s.tlItems) + (hasMore
+        ? '<div id="u-tl-more-wrap"><button type="button" class="btn" id="u-tl-more">تحميل المزيد</button></div>'
+        : '');
+      var moreButton = $('u-tl-more');
+      if (moreButton) moreButton.addEventListener('click', loadTimelineMore);
+    }
+
+    function loadTimeline(reset) {
+      var el = $('u-tl');
+      if (!el) return;
+      if (reset) {
+        s.tl = 1; s.tlItems = []; s.tlTotal = 0;
+        el.innerHTML = U.skeleton('x');
+      }
+      var requestedPage = reset ? 1 : s.tl;
+      guard(el, D.call('getActivityEvents', { userId: id }, {
+        page: requestedPage, pageSize: 20,
+        sort: { field: 'occurredAt', dir: 'desc' }
+      }), function (r) {
+        var items = r && Array.isArray(r.items) ? r.items : [];
+        s.tlItems = reset ? items : s.tlItems.concat(items);
+        s.tlTotal = Number(r && r.total) || s.tlItems.length;
+        s.tl = requestedPage;
+        renderTimeline();
+      }, function () { loadTimeline(!!reset); });
+    }
+
+    function loadTimelineMore() {
+      var wrap = $('u-tl-more-wrap');
+      if (!wrap) return;
+      var nextPage = s.tl + 1;
+      wrap.innerHTML = U.skeleton('x');
+      guard(wrap, D.call('getActivityEvents', { userId: id }, {
+        page: nextPage, pageSize: 20,
+        sort: { field: 'occurredAt', dir: 'desc' }
+      }), function (r) {
+        var items = r && Array.isArray(r.items) ? r.items : [];
+        s.tl = nextPage;
+        s.tlItems = s.tlItems.concat(items);
+        s.tlTotal = Number(r && r.total) || s.tlItems.length;
+        renderTimeline();
+      }, loadTimelineMore);
     }
   }
 
-  // ---------------- Sessions ----------------
+
   function sessionCols(withUser) {
     var cols = [{ label: 'معرّف الجلسة', render: function (x) { return sessionLink(x.id); } }];
     if (withUser) cols.push({ label: 'المستخدم', render: function (x) { return userLink(x.userId, x.userName); } });
@@ -253,7 +381,10 @@
 
   function sessionDetail(id) {
     main.innerHTML = '<a class="back" href="#/sessions">' + U.icon('back') + ' كل الجلسات</a>' + U.skeleton('x');
+    var timelineState = { page: 1, pageSize: 50, items: [], total: 0 };
+
     guard(main, D.call('getSessionDetails', id), function (r) {
+      r = r || {};
       var s = r.session || {}, u = r.user || {};
       var kv = function (k, v) { return '<div class="kv"><span>' + k + '</span><strong>' + v + '</strong></div>'; };
       main.innerHTML = '<a class="back" href="#/sessions">' + U.icon('back') + ' كل الجلسات</a>' +
@@ -261,18 +392,59 @@
         kv('المستخدم', userLink(s.userId || u.id, s.userName || u.name)) + kv('بدء الجلسة', U.dateTime(s.startedAt)) + kv('نهاية الجلسة', U.dateTime(s.endedAt)) + kv('المدة', U.dur(s.activeSeconds)) +
         kv('صفحة الدخول', s.entryPath ? '<span class="mono" dir="ltr">' + esc(s.entryPath) + '</span>' : U.NA) + kv('آخر صفحة', s.lastPath ? '<span class="mono" dir="ltr">' + esc(s.lastPath) + '</span>' : U.NA) + kv('عدد الأحداث', U.num(s.eventCount)) + '</div></section>' +
         '<section class="card"><h3 class="card-t">الخط الزمني للجلسة</h3><div id="s-tl">' + U.skeleton('x') + '</div></section>';
-      var items = [], page = 1;
-      (function more() {
-        D.call('getActivityEvents', { sessionId: id }, { page: page, pageSize: 50, sort: { field: 'occurredAt', dir: 'asc' } }).then(function (e) {
-          items = items.concat(e.items || []); var el = $('s-tl');
-          el.innerHTML = timeline(items) + (items.length < e.total ? '<button type="button" class="btn" id="s-more">تحميل المزيد</button>' : '');
-          var m = $('s-more'); if (m) m.addEventListener('click', function () { page++; more(); });
-        }).catch(function (er) { $('s-tl').innerHTML = U.errorState(er, 'x'); view.retry = function () { sessionDetail(id); }; });
-      })();
+      loadSessionEvents(true);
     }, function () { sessionDetail(id); });
+
+    function renderSessionEvents() {
+      var el = $('s-tl');
+      if (!el) return;
+      var hasMore = timelineState.items.length < timelineState.total;
+      el.innerHTML = timeline(timelineState.items) + (hasMore
+        ? '<div id="s-more-wrap"><button type="button" class="btn" id="s-more">تحميل المزيد</button></div>'
+        : '');
+      var moreButton = $('s-more');
+      if (moreButton) moreButton.addEventListener('click', loadMoreSessionEvents);
+    }
+
+    function loadSessionEvents(reset) {
+      var el = $('s-tl');
+      if (!el) return;
+      if (reset) {
+        timelineState.page = 1; timelineState.items = []; timelineState.total = 0;
+        el.innerHTML = U.skeleton('x');
+      }
+      var requestedPage = reset ? 1 : timelineState.page;
+      guard(el, D.call('getActivityEvents', { sessionId: id }, {
+        page: requestedPage, pageSize: timelineState.pageSize,
+        sort: { field: 'occurredAt', dir: 'asc' }
+      }), function (result) {
+        var items = result && Array.isArray(result.items) ? result.items : [];
+        timelineState.items = reset ? items : timelineState.items.concat(items);
+        timelineState.total = Number(result && result.total) || timelineState.items.length;
+        timelineState.page = requestedPage;
+        renderSessionEvents();
+      }, function () { loadSessionEvents(!!reset); });
+    }
+
+    function loadMoreSessionEvents() {
+      var wrap = $('s-more-wrap');
+      if (!wrap) return;
+      var nextPage = timelineState.page + 1;
+      wrap.innerHTML = U.skeleton('x');
+      guard(wrap, D.call('getActivityEvents', { sessionId: id }, {
+        page: nextPage, pageSize: timelineState.pageSize,
+        sort: { field: 'occurredAt', dir: 'asc' }
+      }), function (result) {
+        var items = result && Array.isArray(result.items) ? result.items : [];
+        timelineState.page = nextPage;
+        timelineState.items = timelineState.items.concat(items);
+        timelineState.total = Number(result && result.total) || timelineState.items.length;
+        renderSessionEvents();
+      }, loadMoreSessionEvents);
+    }
   }
 
-  // ---------------- Activity logs ----------------
+
   var logs = listView('logs', {
     title: 'سجل النشاط', defaults: { search: '', eventName: '', courseId: '', resourceType: '' }, sort: { field: 'occurredAt', dir: 'desc' },
     fields: [{ type: 'search', key: 'search', ph: 'بحث بالمستخدم' }, { type: 'select', key: 'eventName', label: 'نوع الحدث', options: eventOptions },
@@ -349,24 +521,54 @@
       toolbarHtml([{ type: 'search', key: 'search', ph: 'المستخدم (اختياري)' }, { type: 'select', key: 'courseId', label: 'المادة', options: courseOptions }, { type: 'select', key: 'resourceType', label: 'نوع المورد', options: typeOptions }, { type: 'select', key: 'eventName', label: 'نوع النشاط', options: eventOptions }], s) +
       '<div class="cards-3">' + REPORTS.map(function (r) { return '<article class="card report"><h3>' + r[1] + '</h3><p class="muted">' + r[2] + '</p><button type="button" class="btn btn-primary" data-report="' + r[0] + '">' + U.icon('download') + ' تصدير CSV</button></article>'; }).join('') + '</div>';
     bindToolbar(s, function () {}, { search: '', courseId: '', resourceType: '', eventName: '' });
-    qa('[data-report]', main).forEach(function (b) {
-      b.addEventListener('click', function () {
-        var type = b.getAttribute('data-report'); b.disabled = true;
-        D.call('exportReport', type, cleanFilters(s.f)).then(function (r) {
-          if (!r || !r.csv) { U.toast('لا توجد بيانات للتصدير ضمن الفلاتر الحالية', 'warn'); return; }
-          var a = document.createElement('a'), url = URL.createObjectURL(new Blob(['\ufeff' + r.csv], { type: 'text/csv;charset=utf-8' }));
-          a.href = url; a.download = r.filename || (type + '.csv'); document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    qa('[data-report]', main).forEach(function (button) {
+      button.addEventListener('click', function () {
+        if (button.disabled) return;
+        var type = button.getAttribute('data-report');
+        var filters = cleanFilters(s.f);
+        var startedOnRoute = routeVersion;
+        button.disabled = true;
+
+        withTimeout(
+          D.call('exportReport', type, filters),
+          ADMIN_REPORT_TIMEOUT_MS,
+          'استغرق تصدير التقرير وقتًا أطول من المتوقع. حاول مرة أخرى.'
+        ).then(function (result) {
+          if (startedOnRoute !== routeVersion || button.isConnected === false) return;
+          if (!result || !result.csv) {
+            U.toast('لا توجد بيانات للتصدير ضمن الفلاتر الحالية', 'warn');
+            return;
+          }
+          var anchor = document.createElement('a');
+          var objectUrl = URL.createObjectURL(new Blob(['\ufeff' + result.csv], { type: 'text/csv;charset=utf-8' }));
+          anchor.href = objectUrl;
+          anchor.download = result.filename || (type + '.csv');
+          document.body.appendChild(anchor);
+          anchor.click();
+          anchor.remove();
+          setTimeout(function () { URL.revokeObjectURL(objectUrl); }, 1000);
           U.toast('تم تجهيز الملف للتنزيل', 'ok');
-        }).catch(function (e) { U.toast(e && e.code === 'UNAVAILABLE' ? 'مصدر البيانات غير متاح' : 'تعذّر تصدير التقرير. حاول مرة أخرى.', 'err'); }).then(function () { b.disabled = false; });
+        }).catch(function (error) {
+          if (startedOnRoute !== routeVersion || button.isConnected === false) return;
+          U.toast(
+            error && error.code === 'TIMEOUT'
+              ? error.message
+              : (error && error.code === 'UNAVAILABLE' ? 'مصدر البيانات غير متاح' : 'تعذّر تصدير التقرير. حاول مرة أخرى.'),
+            'err'
+          );
+        }).then(function () {
+          if (button.isConnected !== false) button.disabled = false;
+        });
       });
     });
   }
 
-  // ---------------- Router & shell ----------------
+
   var NAV = [['overview', 'نظرة عامة', 'overview', overview], ['users', 'المستخدمون', 'users', users], ['sessions', 'الجلسات', 'sessions', sessions], ['logs', 'سجل النشاط', 'logs', logs],
     ['courses', 'تحليلات المواد', 'courses', courses], ['resources', 'تحليلات الموارد', 'resources', resources], ['reports', 'التقارير', 'reports', reports]];
 
   function route() {
+    routeVersion++;
     var parts = (location.hash.replace(/^#\/?/, '') || 'overview').split('/'), name = parts[0], arg = parts[1] && decodeURIComponent(parts[1]);
     var nav = NAV.filter(function (n) { return n[0] === name; })[0] || NAV[0];
     qa('.nav a').forEach(function (a) { var on = a.getAttribute('data-nav') === nav[0]; a.classList.toggle('on', on); if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
@@ -397,7 +599,7 @@
       if (D.has('signOut')) D.call('signOut').then(function () { location.href = '../'; }).catch(function () { U.toast('تعذّر تسجيل الخروج', 'err'); });
     });
     main.addEventListener('click', function (e) {
-      if (e.target.closest('[data-retry]')) { if (view.retry) view.retry(); return; }
+      if (handleRetryClick(e)) return;
       var tr = e.target.closest('tr[data-href]'); if (tr && !e.target.closest('a,button,summary')) location.hash = tr.getAttribute('data-href');
     });
     main.addEventListener('keydown', function (e) { var tr = e.target.closest && e.target.closest('tr[data-href]'); if (tr && e.target === tr && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); location.hash = tr.getAttribute('data-href'); } });
@@ -416,10 +618,38 @@
     var r = $('gate-retry'); if (r) r.addEventListener('click', retry);
   }
 
+  function refreshFilterSelectOptions() {
+    var factories = { courseId: courseOptions, resourceType: typeOptions, eventName: eventOptions };
+    qa('select[data-f]', main).forEach(function (select) {
+      var key = select.getAttribute('data-f');
+      if (!factories[key]) return;
+      var selected = select.value;
+      var options = factories[key]();
+      select.innerHTML = options.map(function (option) {
+        return '<option value="' + esc(option[0]) + '">' + esc(option[1]) + '</option>';
+      }).join('');
+      select.value = selected;
+      if (select.value !== selected) select.value = '';
+    });
+  }
+
   function start() {
-    $('gate-screen').hidden = true; $('shell').hidden = false; buildShell();
-    var opt = D.has('getFilterOptions') ? D.call('getFilterOptions').catch(function () { return null; }) : Promise.resolve(null);
-    opt.then(function (o) { if (o) state.options = Object.assign(state.options, o); route(); });
+    $('gate-screen').hidden = true;
+    $('shell').hidden = false;
+    buildShell();
+    route();
+    if (D.has('getFilterOptions')) {
+      Promise.resolve()
+        .then(function () { return D.call('getFilterOptions'); })
+        .then(function (options) {
+          if (!options || typeof options !== 'object') return;
+          state.options = Object.assign(state.options, options);
+          refreshFilterSelectOptions();
+        })
+        .catch(function (error) {
+          if (root.console) console.warn('[AdminUI] Filter options unavailable:', error);
+        });
+    }
   }
 
   function boot() {

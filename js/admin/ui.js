@@ -66,8 +66,13 @@
   function empty(msg, sub) { return '<div class="state">' + icon('inbox', 'state-ic') + '<h3>' + esc(msg || 'لا توجد بيانات') + '</h3>' + (sub ? '<p>' + esc(sub) + '</p>' : '') + '</div>'; }
   function errorState(err, retryId) {
     var unavailable = err && err.code === 'UNAVAILABLE';
-    return '<div class="state state-err" role="alert">' + icon('alert', 'state-ic') + '<h3>' + (unavailable ? 'مصدر البيانات غير متاح' : 'تعذّر تحميل البيانات') + '</h3>' +
-      '<p>' + (unavailable ? 'لم يتم ربط لوحة التحكم بمصدر البيانات بعد.' : 'حدث خطأ أثناء جلب البيانات. حاول مرة أخرى.') + '</p>' +
+    var timedOut = err && err.code === 'TIMEOUT';
+    var title = unavailable ? 'مصدر البيانات غير متاح' : (timedOut ? 'انتهت مهلة التحميل' : 'تعذّر تحميل البيانات');
+    var message = unavailable
+      ? 'لم يتم ربط لوحة التحكم بمصدر البيانات بعد.'
+      : (timedOut ? (err.message || 'استغرق تحميل البيانات وقتًا أطول من المتوقع. يمكنك المحاولة مرة أخرى.') : 'حدث خطأ أثناء جلب البيانات. حاول مرة أخرى.');
+    return '<div class="state state-err" role="alert">' + icon('alert', 'state-ic') + '<h3>' + esc(title) + '</h3>' +
+      '<p>' + esc(message) + '</p>' +
       '<button type="button" class="btn" data-retry="' + (retryId || '') + '">' + icon('refresh') + ' إعادة المحاولة</button></div>';
   }
 
