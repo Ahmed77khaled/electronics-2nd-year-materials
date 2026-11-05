@@ -65,7 +65,7 @@
   function resolveEventFilters(client, filters) {
     var f = filters || {};
     return Promise.all([
-      f.search ? fetchAllRows(function () {
+      f.search && !f.userId ? fetchAllRows(function () {
         return client.from('admin_student_summary').select('user_id, full_name, email').order('user_id', { ascending: true });
       }).then(function (users) {
         var term = String(f.search).toLowerCase().trim();
@@ -549,7 +549,9 @@
       };
     });
 
-    if (f.search) {
+    if (f.userId) {
+      items = items.filter(function (item) { return item.userId === f.userId; });
+    } else if (f.search) {
       var term = String(f.search).toLowerCase().trim();
       items = items.filter(function (item) {
         return item.userName.toLowerCase().indexOf(term) !== -1 ||
@@ -798,7 +800,8 @@
       });
       var activityUserIds = Object.keys(activityByUser);
       rows = results[0].filter(function (student) {
-        if (f.search) {
+        if (f.userId && student.user_id !== f.userId) return false;
+        if (f.search && !f.userId) {
           var term = String(f.search).toLowerCase().trim();
           if ((student.full_name || '').toLowerCase().indexOf(term) === -1 &&
               (student.email || '').toLowerCase().indexOf(term) === -1) return false;
