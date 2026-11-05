@@ -37,9 +37,13 @@ jobs:
           node --check js/admin/ui.js
           node --check js/admin/app.js
           node --check tests/test-task1-admin-loading.js
+          node --check tests/test-task3-admin-metrics.js
 
       - name: Run Portal Regression Tests
         run: node tests/test-suite.js
 
       - name: Run Admin Dashboard Acceptance Tests
         run: node tests/test-task1-admin-loading.js
+
+      - name: Run Admin Metrics Accuracy Tests
+        run: node tests/test-task3-admin-metrics.js

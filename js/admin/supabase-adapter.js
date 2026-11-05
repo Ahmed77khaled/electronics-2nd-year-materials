@@ -14,6 +14,21 @@
     return root.SupabaseBridge || null;
   }
 
+  // Preserve the distinction between a real zero and a metric not supplied by
+  // the database (for example, before migration 007 has been applied).
+  function toNullableNumber(value) {
+    if (value === null || value === undefined || value === '') return null;
+    var number = Number(value);
+    return Number.isFinite(number) ? number : null;
+  }
+
+  function computeSessionStatus(session) {
+    if (session.ended_at) return 'ended';
+    var heartbeatAt = session.last_heartbeat_at ? new Date(session.last_heartbeat_at).getTime() : NaN;
+    if (!Number.isFinite(heartbeatAt) || Date.now() - heartbeatAt > 5 * 60 * 1000) return 'interrupted';
+    return 'active';
+  }
+
   // Helper: compute student status
   function computeStudentStatus(lastSeen, totalSessions) {
     if (!totalSessions || Number(totalSessions) === 0) return 'never_active';
@@ -69,9 +84,9 @@
     if (!client) throw new Error('Supabase client unavailable');
 
     var pMetrics = client.from('admin_overview_metrics').select('*').maybeSingle();
-    var pStudents = client.from('admin_student_summary').select('*');
+    var pStudents = client.from('admin_student_summary').select('*').order('registered_at', { ascending: false });
     var pDaily = client.from('admin_daily_activity').select('*').order('activity_date_utc', { ascending: true });
-    var pCourses = client.from('admin_course_analytics').select('*').order('interaction_count', { ascending: false });
+    var pCourses = client.from('admin_course_analytics').select('*').order('course_visit_count', { ascending: false });
     var pResources = client.from('admin_resource_analytics').select('*').order('click_count', { ascending: false });
     var pRecentEvents = client.from('activity_events').select('*').order('occurred_at', { ascending: false }).limit(10);
 
@@ -93,14 +108,21 @@
       studentMap[s.user_id] = s.full_name || s.email || 'طالب';
     });
 
-    var totalStudents = Number(metrics.registered_students || students.length);
-    var activeUsers = Number(metrics.active_students_30d || students.filter(function(s) { return Number(s.session_count) > 0; }).length);
-    var totalSessionsCount = Number(metrics.total_sessions || 0);
-    var totalSecondsSum = Number(metrics.total_active_seconds || 0);
-    var resourceClicksSum = Number(metrics.total_resource_clicks || 0);
+    var registeredMetric = toNullableNumber(metrics.registered_students);
+    var totalStudents = registeredMetric == null ? students.length : registeredMetric;
+    var activeUsers = toNullableNumber(metrics.active_students_30d);
+    var totalSessionsCount = toNullableNumber(metrics.total_sessions);
+    var totalSecondsSum = toNullableNumber(metrics.total_active_seconds);
+    var resourceClicksSum = toNullableNumber(metrics.total_resource_clicks);
+    var pageViewsSum = toNullableNumber(metrics.total_page_views);
 
-    var activeTodayCount = Number(metrics.active_students_24h || 0);
-    var activeWeekCount = Number(metrics.active_students_7d || 0);
+    var activeTodayCount = toNullableNumber(metrics.active_students_24h);
+    var activeWeekCount = toNullableNumber(metrics.active_students_7d);
+
+    var activeUserIds = {};
+    activeSessions.forEach(function(session) {
+      if (session.user_id) activeUserIds[session.user_id] = true;
+    });
 
     var todayStr = new Date().toISOString().slice(0, 10);
     var todayRow = daily.filter(function(d) { return d.activity_date_utc === todayStr; })[0];
@@ -150,14 +172,18 @@
       kpis: {
         registeredUsers: totalStudents,
         activeUsers: activeUsers,
-        activeNow: activeSessions.length,
+        activeNow: Object.keys(activeUserIds).length,
         activeToday: activeTodayCount,
         activeWeek: activeWeekCount,
         totalSessions: totalSessionsCount,
         sessionsToday: sessionsTodayCount,
         totalSeconds: totalSecondsSum,
-        avgSessionSeconds: totalSessionsCount > 0 ? Math.round(totalSecondsSum / totalSessionsCount) : 0,
-        pageViews: Number(metrics.total_resource_clicks || 0),
+        avgSessionSeconds: totalSessionsCount === 0 ? 0 : (
+          totalSessionsCount != null && totalSecondsSum != null
+            ? Math.round(totalSecondsSum / totalSessionsCount)
+            : null
+        ),
+        pageViews: pageViewsSum,
         resourceClicks: resourceClicksSum
       },
       series: {
@@ -167,7 +193,7 @@
         events: eventsSeries
       },
       topCourses: courses.slice(0, 6).map(function(c) {
-        return { id: c.course_id, title: c.course_title, value: Number(c.interaction_count || 0) };
+        return { id: c.course_id, title: c.course_title, value: toNullableNumber(c.course_visit_count) };
       }),
       topResources: resources.slice(0, 6).map(function(r) {
         return { id: r.resource_id, title: r.resource_title, value: Number(r.click_count || 0) };
@@ -195,11 +221,11 @@
         email: s.email,
         avatarUrl: s.avatar_url,
         registeredAt: s.registered_at,
-        lastLoginAt: s.last_active_at,
+        lastLoginAt: s.last_login_at || null,
         lastActiveAt: s.last_active_at,
         sessions: Number(s.session_count || 0),
         totalSeconds: Number(s.total_active_seconds || 0),
-        resourceClicks: Number(s.session_count || 0),
+        resourceClicks: toNullableNumber(s.resource_click_count),
         status: computeStudentStatus(s.last_active_at, s.session_count)
       };
     });
@@ -264,11 +290,11 @@
       email: s.email,
       avatarUrl: s.avatar_url,
       registeredAt: s.registered_at,
-      lastLoginAt: s.last_active_at,
+      lastLoginAt: s.last_login_at || null,
       lastActiveAt: s.last_active_at,
       sessions: Number(s.session_count || 0),
       totalSeconds: Number(s.total_active_seconds || 0),
-      resourceClicks: Number(s.session_count || 0),
+      resourceClicks: toNullableNumber(s.resource_click_count),
       status: computeStudentStatus(s.last_active_at, s.session_count)
     };
 
@@ -277,10 +303,10 @@
       stats: {
         sessions: user.sessions,
         totalSeconds: user.totalSeconds,
-        pageViews: Math.round(user.sessions * 2.5),
-        courseVisits: Math.round(user.sessions * 1.8),
-        resourceClicks: user.resourceClicks,
-        firstActivityAt: s.registered_at,
+        pageViews: toNullableNumber(s.page_view_count),
+        courseVisits: toNullableNumber(s.course_visit_count),
+        resourceClicks: toNullableNumber(s.resource_click_count),
+        firstActivityAt: s.first_activity_at || null,
         lastActiveAt: s.last_active_at
       }
     };
@@ -291,7 +317,7 @@
     var client = getClient();
     if (!client) throw new Error('Supabase client unavailable');
 
-    var query = client.from('sessions').select('*', { count: 'exact' }).eq('user_id', userId);
+    var query = client.from('admin_session_analytics').select('*', { count: 'exact' }).eq('user_id', userId);
     var sort = pagination && pagination.sort ? pagination.sort : { field: 'started_at', dir: 'desc' };
     query = query.order(sort.field === 'startedAt' ? 'started_at' : (sort.field === 'activeSeconds' ? 'active_seconds' : 'started_at'), { ascending: sort.dir === 'asc' });
 
@@ -311,9 +337,9 @@
         endedAt: s.ended_at,
         activeSeconds: s.active_seconds || 0,
         entryPath: s.entry_path || '/index.html',
-        lastPath: s.entry_path || '/index.html',
-        eventCount: 1,
-        status: s.ended_at ? 'ended' : 'active'
+        lastPath: s.last_path || null,
+        eventCount: toNullableNumber(s.event_count),
+        status: computeSessionStatus(s)
       };
     });
 
@@ -325,7 +351,7 @@
     var client = getClient();
     if (!client) throw new Error('Supabase client unavailable');
 
-    var pSessions = client.from('sessions').select('*', { count: 'exact' });
+    var pSessions = client.from('admin_session_analytics').select('*', { count: 'exact' });
     var pStudents = client.from('admin_student_summary').select('user_id, full_name');
 
     var sort = pagination && pagination.sort ? pagination.sort : { field: 'started_at', dir: 'desc' };
@@ -353,9 +379,9 @@
         endedAt: s.ended_at,
         activeSeconds: s.active_seconds || 0,
         entryPath: s.entry_path || '/index.html',
-        lastPath: s.entry_path || '/index.html',
-        eventCount: 1,
-        status: s.ended_at ? 'ended' : 'active'
+        lastPath: s.last_path || null,
+        eventCount: toNullableNumber(s.event_count),
+        status: computeSessionStatus(s)
       };
     });
 
@@ -367,7 +393,7 @@
     var client = getClient();
     if (!client) throw new Error('Supabase client unavailable');
 
-    var res = await client.from('sessions').select('*').eq('id', sessionId).maybeSingle();
+    var res = await client.from('admin_session_analytics').select('*').eq('id', sessionId).maybeSingle();
     if (res.error) throw res.error;
     var s = res.data;
     if (!s) {
@@ -387,9 +413,9 @@
         endedAt: s.ended_at,
         activeSeconds: s.active_seconds || 0,
         entryPath: s.entry_path || '/index.html',
-        lastPath: s.entry_path || '/index.html',
-        eventCount: 1,
-        status: s.ended_at ? 'ended' : 'active'
+        lastPath: s.last_path || null,
+        eventCount: toNullableNumber(s.event_count),
+        status: computeSessionStatus(s)
       },
       user: userRes.user
     };
@@ -464,14 +490,14 @@
     var client = getClient();
     if (!client) throw new Error('Supabase client unavailable');
 
-    var res = await client.from('admin_course_analytics').select('*').order('interaction_count', { ascending: false });
+    var res = await client.from('admin_course_analytics').select('*').order('course_visit_count', { ascending: false });
     if (res.error) throw res.error;
 
     var items = (res.data || []).map(function(c) {
       return {
         courseId: c.course_id,
         title: c.course_title,
-        visits: Number(c.interaction_count || 0),
+        visits: toNullableNumber(c.course_visit_count),
         uniqueUsers: Number(c.engaged_students || 0),
         resourceClicks: Number(c.resource_click_count || 0),
         avgEngagementSeconds: null,
@@ -519,16 +545,19 @@
     if (type === 'users') {
       var uRes = await client.from('admin_student_summary').select('*');
       var uItems = uRes.data || [];
-      csv = 'User ID,Name,Email,Sessions,Total Seconds,Registered At,Last Active At\n' +
+      csv = 'User ID,Name,Email,Sessions,Total Seconds,Page Views,Course Visits,Resource Clicks,Registered At,First Activity,Last Login,Last Active At\n' +
         uItems.map(function(s) {
-          return [s.user_id, '"' + (s.full_name || '') + '"', s.email, s.session_count, s.total_active_seconds, s.registered_at, s.last_active_at].join(',');
+          return [s.user_id, '"' + (s.full_name || '') + '"', s.email, s.session_count, s.total_active_seconds,
+            s.page_view_count, s.course_visit_count, s.resource_click_count, s.registered_at,
+            s.first_activity_at, s.last_login_at, s.last_active_at].join(',');
         }).join('\n');
     } else if (type === 'courses') {
-      var cRes = await client.from('admin_course_analytics').select('*');
+      var cRes = await client.from('admin_course_analytics').select('*').order('course_visit_count', { ascending: false });
       var cItems = cRes.data || [];
-      csv = 'Course Slug,Course Title,Interactions,Resource Clicks,Engaged Students,Last Interaction\n' +
+      csv = 'Course Slug,Course Title,Course Visits,Total Interactions,Resource Clicks,Engaged Students,Last Interaction\n' +
         cItems.map(function(c) {
-          return [c.course_slug, '"' + c.course_title + '"', c.interaction_count, c.resource_click_count, c.engaged_students, c.last_interaction_at].join(',');
+          return [c.course_slug, '"' + c.course_title + '"', c.course_visit_count, c.interaction_count,
+            c.resource_click_count, c.engaged_students, c.last_interaction_at].join(',');
         }).join('\n');
     } else if (type === 'resources') {
       var rRes = await client.from('admin_resource_analytics').select('*');
@@ -538,16 +567,17 @@
           return [r.resource_key, '"' + r.resource_title + '"', r.course_title, r.click_count, r.unique_students, r.last_clicked_at].join(',');
         }).join('\n');
     } else if (type === 'sessions') {
-      var sRes = await client.from('sessions').select('*').order('started_at', { ascending: false });
+      var sRes = await client.from('admin_session_analytics').select('*').order('started_at', { ascending: false });
       var stRes = await client.from('admin_student_summary').select('user_id, full_name, email');
       var sMap = {};
       (stRes.data || []).forEach(function(st) { sMap[st.user_id] = st; });
       var sItems = sRes.data || [];
-      csv = 'Session ID,Student Name,Email,Started At,Ended At,Active Seconds,Status\n' +
+      csv = 'Session ID,Student Name,Email,Started At,Ended At,Active Seconds,Event Count,Last Path,Status\n' +
         sItems.map(function(s) {
           var user = sMap[s.user_id] || {};
-          var status = s.ended_at ? 'Ended' : 'Active';
-          return [s.id, '"' + (user.full_name || 'طالب') + '"', user.email || '', s.started_at, s.ended_at || '', s.active_seconds || 0, status].join(',');
+          var status = computeSessionStatus(s);
+          return [s.id, '"' + (user.full_name || 'طالب') + '"', user.email || '', s.started_at, s.ended_at || '',
+            s.active_seconds || 0, s.event_count, s.last_path || '', status].join(',');
         }).join('\n');
     } else {
       var dRes = await client.from('admin_daily_activity').select('*');
