@@ -27,6 +27,13 @@
 
   var clientSessionId = getOrCreateClientSessionId();
   var databaseSessionId = null;
+  var anonymousVisitorKey = null;
+  var anonymousClientSessionId = null;
+  var anonymousDatabaseSessionId = null;
+  var anonymousStartPromise = null;
+  var anonymousLifecycleGeneration = 0;
+  var anonymousHeartbeatPromise = null;
+  var anonymousPageViewRecorded = false;
   var sessionStartPromise = null;
   var sessionStartGeneration = -1;
   var sessionClosePromise = null;
@@ -54,6 +61,46 @@
     'SUB_06_HUMANITIES': 'humanities',
     'ROOT_DRIVE_TERM1': 'general-term-1'
   };
+
+  function createUuid() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      var r = Math.random() * 16 | 0;
+      return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+    });
+  }
+
+  function getOrCreateStoredUuid(storage, key) {
+    try {
+      var value = storage && storage.getItem(key);
+      if (isUuid(value)) return value;
+      value = createUuid();
+      if (storage) storage.setItem(key, value);
+      return value;
+    } catch (err) {
+      return createUuid();
+    }
+  }
+
+  function renewAnonymousTabSessionId() {
+    anonymousClientSessionId = createUuid();
+    try {
+      var storage = root.sessionStorage || (typeof sessionStorage !== 'undefined' ? sessionStorage : null);
+      if (storage) storage.setItem('portal_anonymous_session_id', anonymousClientSessionId);
+    } catch (err) {}
+  }
+
+  function ensureAnonymousIdentifiers() {
+    if (!anonymousVisitorKey) {
+      var persistentStorage = null;
+      try { persistentStorage = root.localStorage || null; } catch (err) {}
+      anonymousVisitorKey = getOrCreateStoredUuid(persistentStorage, 'portal_anonymous_visitor_key');
+    }
+    if (!anonymousClientSessionId) {
+      var tabStorage = null;
+      try { tabStorage = root.sessionStorage || (typeof sessionStorage !== 'undefined' ? sessionStorage : null); } catch (err) {}
+      anonymousClientSessionId = getOrCreateStoredUuid(tabStorage, 'portal_anonymous_session_id');
+    }
+  }
 
   function isForeground() {
     if (typeof document !== 'undefined') {
@@ -252,6 +299,7 @@
       }
       pendingPauseTimer = null;
       pauseDatabaseSession(reason || 'tab-hidden', interactionAtPause, true);
+      pauseAnonymousSession(reason || 'tab-hidden', interactionAtPause, true);
     }
 
     pendingPauseTimer = setTimeout(attemptPause, PAUSE_GRACE_MS);
@@ -272,7 +320,160 @@
 
     lastInteractionTime = now;
     lastMeaningfulInteractionTime = now;
-    ensureDatabaseSession().catch(function() {});
+    ensureDatabaseSession().then(function(sessionId) {
+      if (!sessionId) return ensureAnonymousDatabaseSession();
+      return sessionId;
+    }).catch(function() {});
+  }
+
+  async function ensureAnonymousDatabaseSession() {
+    var bridge = root.SupabaseBridge;
+    if (!bridge || typeof bridge.isReady !== 'function' || !bridge.isReady() ||
+        typeof bridge.startAnonymousVisitorSession !== 'function') return null;
+
+    ensureAnonymousIdentifiers();
+    if (anonymousDatabaseSessionId && isUuid(anonymousDatabaseSessionId)) return anonymousDatabaseSessionId;
+    if (anonymousStartPromise) return anonymousStartPromise;
+
+    var user = null;
+    try {
+      user = await bridge.getCurrentUser();
+    } catch (err) {
+      return null;
+    }
+    if (user && user.id) return null;
+
+    var startGeneration = anonymousLifecycleGeneration;
+    var requestVisitorKey = anonymousVisitorKey;
+    var requestClientSessionId = anonymousClientSessionId;
+    var request = Promise.resolve(bridge.startAnonymousVisitorSession(
+      requestVisitorKey,
+      requestClientSessionId,
+      (root.location && root.location.pathname) || '/'
+    )).then(async function(sessionId) {
+      if (!isUuid(sessionId)) return null;
+      var confirmedUser = null;
+      try { confirmedUser = await bridge.getCurrentUser(); } catch (err) {}
+      if ((confirmedUser && confirmedUser.id) || startGeneration !== anonymousLifecycleGeneration || !isForeground()) {
+        if (typeof bridge.endAnonymousVisitorSession === 'function') {
+          await bridge.endAnonymousVisitorSession(requestVisitorKey, requestClientSessionId);
+        }
+        return null;
+      }
+      anonymousDatabaseSessionId = sessionId;
+      return sessionId;
+    }).catch(function(err) {
+      var debug = root.APP_CONFIG && root.APP_CONFIG.analytics && root.APP_CONFIG.analytics.debug;
+      if (debug) console.warn('[PortalTracker] Anonymous session start failed:', err);
+      return null;
+    });
+
+    anonymousStartPromise = request;
+    try {
+      return await request;
+    } finally {
+      if (anonymousStartPromise === request) anonymousStartPromise = null;
+    }
+  }
+
+  function sendAnonymousHeartbeat(allowClosingSession, visitorKeyOverride, clientSessionIdOverride) {
+    var bridge = root.SupabaseBridge;
+    if ((!anonymousDatabaseSessionId && allowClosingSession !== true) || !bridge ||
+        typeof bridge.heartbeatAnonymousVisitorSession !== 'function') {
+      return Promise.resolve(0);
+    }
+    if (anonymousHeartbeatPromise) return anonymousHeartbeatPromise;
+    var request = Promise.resolve().then(function() {
+      return bridge.heartbeatAnonymousVisitorSession(
+        visitorKeyOverride || anonymousVisitorKey,
+        clientSessionIdOverride || anonymousClientSessionId
+      );
+    }).catch(function() {
+      return 0;
+    });
+    anonymousHeartbeatPromise = request;
+    request.then(function() {
+      if (anonymousHeartbeatPromise === request) anonymousHeartbeatPromise = null;
+    });
+    return request;
+  }
+
+  function pauseAnonymousSession(reason, interactionAtPause, allowFinalHeartbeat) {
+    var bridge = root.SupabaseBridge;
+    anonymousLifecycleGeneration++;
+    var closingVisitorKey = anonymousVisitorKey;
+    var closingClientSessionId = anonymousClientSessionId;
+    var sessionId = anonymousDatabaseSessionId;
+    anonymousDatabaseSessionId = null;
+
+    // Rotate the tab key before navigation/unload. A reload or resumed tab
+    // must create a fresh database session so an old end RPC cannot close it.
+    renewAnonymousTabSessionId();
+
+    if (!sessionId || !bridge || typeof bridge.endAnonymousVisitorSession !== 'function') {
+      return Promise.resolve(false);
+    }
+
+    var finalInteractionTime = interactionAtPause || lastMeaningfulInteractionTime;
+    var mayFlush = allowFinalHeartbeat === true && finalInteractionTime &&
+      (Date.now() - finalInteractionTime) <= IDLE_TIMEOUT_MS;
+    var pending = anonymousHeartbeatPromise
+      ? anonymousHeartbeatPromise.catch(function() { return 0; })
+      : Promise.resolve(0);
+    var finalHeartbeat = mayFlush
+      ? sendAnonymousHeartbeat(true, closingVisitorKey, closingClientSessionId)
+      : pending;
+
+    return Promise.resolve(finalHeartbeat).then(function() {
+      return bridge.endAnonymousVisitorSession(closingVisitorKey, closingClientSessionId);
+    }).then(function(result) {
+      if (root.APP_CONFIG && root.APP_CONFIG.analytics && root.APP_CONFIG.analytics.debug) {
+        console.info('[PortalTracker] Anonymous session closed:', reason || 'pause');
+      }
+      return result;
+    }).catch(function() {
+      return false;
+    });
+  }
+
+  async function recordAnonymousPageView() {
+    if (anonymousPageViewRecorded) return;
+    var bridge = root.SupabaseBridge;
+    if (!bridge || typeof bridge.trackAnonymousVisitorEvent !== 'function') return;
+    var sessionId = await ensureAnonymousDatabaseSession();
+    if (!sessionId) return;
+
+    var result = await bridge.trackAnonymousVisitorEvent({
+      event_name: 'page_view',
+      page_path: (root.location && root.location.pathname) || '/',
+      properties: { source: 'page_load' }
+    }, anonymousVisitorKey, anonymousClientSessionId);
+
+    if (result && result.success) {
+      anonymousPageViewRecorded = true;
+      lastInteractionTime = Date.now();
+      lastMeaningfulInteractionTime = lastInteractionTime;
+      dispatchLocalTelemetry({
+        event_name: 'page_view',
+        user_id: null,
+        session_id: sessionId,
+        visitor_key: anonymousVisitorKey,
+        page_path: (root.location && root.location.pathname) || '/',
+        occurred_at: new Date().toISOString(),
+        properties: { source: 'page_load' }
+      });
+    } else if (root.APP_CONFIG && root.APP_CONFIG.analytics && root.APP_CONFIG.analytics.debug) {
+      console.warn('[PortalTracker] Anonymous page view was not recorded:', result && (result.reason || result.error));
+    }
+  }
+
+  function initializeAnonymousTracking() {
+    // Start on page load (not on first click), but only for a signed-out visitor.
+    recordAnonymousPageView().catch(function(err) {
+      if (root.APP_CONFIG && root.APP_CONFIG.analytics && root.APP_CONFIG.analytics.debug) {
+        console.warn('[PortalTracker] Anonymous visitor initialization failed:', err);
+      }
+    });
   }
 
   function dispatchLocalTelemetry(payload) {
@@ -333,6 +534,23 @@
         return { success: false, error: err };
       }
     }
+
+    if (!userId && wasActiveAtDispatch && bridge && typeof bridge.trackAnonymousVisitorEvent === 'function') {
+      var anonymousSessionId = await ensureAnonymousDatabaseSession();
+      if (!anonymousSessionId) return { success: false, reason: 'no_anonymous_session' };
+      fullPayload.session_id = anonymousSessionId;
+      fullPayload.visitor_key = anonymousVisitorKey;
+      try {
+        var anonymousResult = await bridge.trackAnonymousVisitorEvent(fullPayload, anonymousVisitorKey, anonymousClientSessionId);
+        if (debugMode && anonymousResult && !anonymousResult.success) {
+          console.warn('[Anonymous Telemetry Sync Warning]', anonymousResult.reason || anonymousResult.error || 'unknown');
+        }
+        return anonymousResult;
+      } catch (err) {
+        if (debugMode) console.warn('[Anonymous Telemetry Sync Warning]', err);
+        return { success: false, error: err };
+      }
+    }
     return { success: false, reason: userId ? 'no_active_session' : 'unauthenticated_user_skipped' };
   }
 
@@ -356,11 +574,15 @@
       var bridge = root.SupabaseBridge;
       if (!bridge || typeof bridge.isReady !== 'function' || !bridge.isReady()) return;
       if (!isForeground()) return;
-      if (!databaseSessionId || !isUuid(databaseSessionId)) return;
       if (!lastInteractionTime || (Date.now() - lastInteractionTime) > IDLE_TIMEOUT_MS) return;
-      if (typeof bridge.heartbeatPortalSession !== 'function') return;
-
-      sendHeartbeat(databaseSessionId);
+      if (databaseSessionId && isUuid(databaseSessionId) &&
+          typeof bridge.heartbeatPortalSession === 'function') {
+        sendHeartbeat(databaseSessionId);
+        return;
+      }
+      if (anonymousDatabaseSessionId && typeof bridge.heartbeatAnonymousVisitorSession === 'function') {
+        sendAnonymousHeartbeat();
+      }
     }, 30000);
   }
 
@@ -370,11 +592,15 @@
       window.addEventListener('focus', function() { cancelPendingPause(); });
       window.addEventListener('pagehide', function() {
         cancelPendingPause();
-        pauseDatabaseSession('pagehide', lastInteractionTime, true);
+        var interactionAtHide = lastInteractionTime;
+        pauseDatabaseSession('pagehide', interactionAtHide, true);
+        pauseAnonymousSession('pagehide', interactionAtHide, true);
       });
       window.addEventListener('beforeunload', function() {
         cancelPendingPause();
-        pauseDatabaseSession('beforeunload', lastInteractionTime, true);
+        var interactionAtUnload = lastInteractionTime;
+        pauseDatabaseSession('beforeunload', interactionAtUnload, true);
+        pauseAnonymousSession('beforeunload', interactionAtUnload, true);
       });
     }
 
@@ -393,8 +619,9 @@
         if (event === 'SIGNED_OUT' || !session || !session.user) {
           pauseDatabaseSession('signed-out', lastInteractionTime, false);
         } else {
-          // Do not auto-start time on auth refresh. The next user interaction
-          // creates the session baseline and demonstrates portal engagement.
+          pauseAnonymousSession('signed-in', lastInteractionTime, false);
+          // Do not auto-start identified time on auth refresh. The next user
+          // interaction creates the authenticated session baseline.
           lastInteractionTime = 0;
         }
       });
@@ -507,6 +734,7 @@
     setupSearchListener();
     setupFilterListener();
     setupHeartbeat();
+    initializeAnonymousTracking();
 
     if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
       ['pointerdown', 'keydown', 'scroll', 'touchstart'].forEach(function(eventName) {
@@ -527,14 +755,19 @@
     dispatchEvent: dispatchEvent,
     getClientSessionId: function() { return clientSessionId; },
     getDatabaseSessionId: function() { return databaseSessionId; },
+    getAnonymousSessionId: function() { return anonymousDatabaseSessionId; },
+    getAnonymousVisitorKey: function() { return anonymousVisitorKey; },
     getRecentClicks: function() { return recentClicks; },
     markUserActive: markUserActive,
     pauseDatabaseSession: pauseDatabaseSession,
+    pauseAnonymousSession: pauseAnonymousSession,
     ensureDatabaseSession: ensureDatabaseSession,
+    ensureAnonymousDatabaseSession: ensureAnonymousDatabaseSession,
     stopHeartbeat: function() {
       if (heartbeatInterval) clearInterval(heartbeatInterval);
       heartbeatInterval = null;
       cancelPendingPause();
+      pauseAnonymousSession('tracker-stopped', lastInteractionTime, false);
     }
   };
 })(typeof self !== 'undefined' ? self : this);

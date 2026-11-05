@@ -11,6 +11,9 @@ Apply these files in order in a dedicated development/staging Supabase project:
 3. `003_seed_courses_and_resources.sql`
 4. `004_admin_analytics_views.sql`
 5. `005_admin_analytics_authorization.sql`
+6. `006_backend_security_hardening.sql`
+7. `007_admin_analytics_metric_accuracy.sql`
+8. `008_anonymous_visitor_analytics.sql`
 
 Do not expose the admin analytics views until migration 005 has been applied.
 
@@ -23,7 +26,8 @@ The browser implementation is split across:
 
 - `js/config.js`: public project URL and publishable/anon key placeholders.
 - `js/supabase-client.js`: Auth client, UUID lookup, database-session ownership, and RPC wrapper.
-- `js/tracker.js`: interaction events, idle/focus logic, session lifecycle, and heartbeat schedule.
+- `js/tracker.js`: interaction events, idle/focus logic, identified-session lifecycle, anonymous page views, and heartbeat schedule.
+- Anonymous visitor IDs are random UUIDs stored in `localStorage`; per-tab anonymous session IDs are random UUIDs stored in `sessionStorage`. No IP address, browser fingerprint, name, email, or user-agent is stored for anonymous visitors.
 - `data/resourceRegistry.js`: stable text resource keys used by the portal UI.
 
 A signed-in Supabase Auth session is a prerequisite for identified student tracking. The tracker
@@ -123,6 +127,16 @@ Migrations 004 and 005 create the aggregate analytics views. Migration 005 adds 
 analytics views. Authenticated non-admin users receive no rows. Admin membership must be granted
 manually by a trusted project owner; there is no first-user-is-admin behavior.
 
+## Anonymous visitor tracking (migration 008)
+
+Signed-out page loads create an anonymous visitor record and record a `page_view` immediately; the visitor does not need to click first. The browser keeps a random visitor UUID in local storage and a random per-tab session UUID in session storage. When a tab session is closed or the page is refreshed, the old session is ended best-effort and the tab key is rotated before navigation. A refresh therefore records another page view and a new session while retaining the same pseudonymous visitor key.
+
+Anonymous tracking uses separate `anonymous_visitors`, `anonymous_sessions`, and `anonymous_activity_events` tables. It never writes to the identified student `profiles`, `sessions`, or `activity_events` tables. If a Supabase user is signed in, the anonymous tracking RPC rejects new anonymous writes and the existing authenticated tracker remains responsible for that user's activity.
+
+The anonymous RPCs enforce an event allowlist, the same compact property allowlist as identified tracking, resource/course validation, sanitized page paths, and a basic per-visitor write throttle. Direct table reads/writes are unavailable to `anon`; only the RPCs can write. Authenticated admins can read the admin summary through the RLS-protected view.
+
+Anonymous identities are pseudonymous browser identifiers, not verified people. Clearing browser site data or using another browser/device creates a different visitor key. Active-time estimates remain best-effort and must not be treated as proof of attention.
+
 ## Security properties and limitations
 
 - Browser clients cannot directly INSERT/UPDATE/DELETE profiles, sessions, events, or admin roles.
@@ -133,4 +147,5 @@ manually by a trusted project owner; there is no first-user-is-admin behavior.
 - Drive/YouTube time is not measured or credited as portal active time.
 - Visibility, focus, and idle checks are best-effort client signals, not proof of human attention.
 - Migrations and SQL role-simulation tests must be run in staging before production.
-- The feature branch has not been applied to a Supabase project or deployed to GitHub Pages.
+- Live Supabase verification reported on 2026-11-05 confirmed that migration 007 was already present, migration 008 was applied, the anonymous tables/RPCs/admin summary view were available, direct anonymous table reads were denied, and guest/authenticated-user RPC scenarios behaved as expected.
+- The frontend feature branch has not yet been merged or deployed to GitHub Pages; applying database migrations does not publish the website code.

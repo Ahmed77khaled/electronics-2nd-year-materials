@@ -23,7 +23,25 @@
   });
   var byId = function (list, id) { return list.filter(function (x) { return x.id === id; })[0]; };
 
-  var users = [], sessions = [], events = [];
+  var users = [], sessions = [], events = [], anonymousVisitors = [];
+  for (var av = 1; av <= 24; av++) {
+    var firstSeen = NOW - Math.floor(rnd() * 35) * DAY - Math.floor(rnd() * DAY);
+    var lastSeen = Math.min(NOW, firstSeen + Math.floor(rnd() * 5) * DAY + Math.floor(rnd() * 6) * 3600000);
+    anonymousVisitors.push({
+      id: 'anon-' + av,
+      visitorKey: 'a1b2c3d4-0000-4000-8000-' + String(av).padStart(12, '0'),
+      firstSeenAt: iso(firstSeen),
+      lastSeenAt: iso(lastSeen),
+      lastSeenAtMs: lastSeen,
+      firstPath: '/index.html',
+      lastPath: pick(['/index.html', '/semester1_electronics_content_map.html', '/privacy.html']),
+      sessions: 1 + Math.floor(rnd() * 6),
+      totalSeconds: Math.floor(rnd() * 2400),
+      pageViews: 1 + Math.floor(rnd() * 25),
+      eventCount: 2 + Math.floor(rnd() * 45),
+      activeNow: NOW - lastSeen < 5 * 60000
+    });
+  }
   var evNames = ['page_view', 'course_click', 'resource_click', 'youtube_click', 'folder_link_clicked', 'search_used', 'filter_changed', 'return_to_portal'];
   for (var u = 1; u <= 64; u++) {
     var reg = NOW - Math.floor(rnd() * 60) * DAY - Math.floor(rnd() * DAY);
@@ -115,16 +133,23 @@
           registeredUsers: users.length, activeUsers: distinct(ev), activeNow: us.filter(function (x) { return x.status === 'active_now'; }).length,
           activeToday: distinct(events.filter(function (x) { return x.occurredAt > today; })), activeWeek: distinct(events.filter(function (x) { return x.occurredAt > NOW - 7 * DAY; })),
           totalSessions: ss.length, sessionsToday: sessions.filter(function (s) { return s.startedAt > today; }).length, totalSeconds: total,
-          avgSessionSeconds: ss.length ? Math.round(total / ss.length) : null, pageViews: ev.filter(function (x) { return x.eventName === 'page_view'; }).length, resourceClicks: ev.filter(clickEv).length
+          avgSessionSeconds: ss.length ? Math.round(total / ss.length) : null, pageViews: ev.filter(function (x) { return x.eventName === 'page_view'; }).length, resourceClicks: ev.filter(clickEv).length,
+          anonymousVisitors: anonymousVisitors.filter(function (v) { return inRange(v.lastSeenAtMs, f); }).length,
+          anonymousSessions: anonymousVisitors.filter(function (v) { return inRange(v.lastSeenAtMs, f); }).reduce(function (sum, v) { return sum + v.sessions; }, 0),
+          anonymousActiveNow: anonymousVisitors.filter(function (v) { return v.activeNow && inRange(v.lastSeenAtMs, f); }).length,
+          anonymousPageViews: anonymousVisitors.filter(function (v) { return inRange(v.lastSeenAtMs, f); }).reduce(function (sum, v) { return sum + v.pageViews; }, 0)
         },
         series: {
           dailyActive: (function () { var m = {}; ev.forEach(function (x) { var d = iso(x.occurredAt).slice(0, 10); (m[d] = m[d] || {})[x.userId] = 1; }); return Object.keys(m).sort().map(function (d) { return { date: d, value: Object.keys(m[d]).length }; }); })(),
-          sessions: daily(ss, 'startedAt', f), registrations: daily(users, 'registeredAt', f), events: daily(ev, 'occurredAt', f)
+          sessions: daily(ss, 'startedAt', f), registrations: daily(users, 'registeredAt', f), events: daily(ev, 'occurredAt', f),
+          dailyVisitors: daily(anonymousVisitors, 'lastSeenAtMs', f).map(function (x) { return x; }),
+          anonymousPageViews: daily(anonymousVisitors, 'lastSeenAtMs', f)
         },
         topCourses: Object.keys(cnt).map(function (k) { return { id: k, title: byId(courses, k).title, value: cnt[k] }; }).sort(function (a, b) { return b.value - a.value; }).slice(0, 6),
         topResources: Object.keys(rc).map(function (k) { return { id: k, title: byId(resources, k).title, value: rc[k] }; }).sort(function (a, b) { return b.value - a.value; }).slice(0, 8),
         recentActivity: ev.slice(0, 8).map(evRow),
-        latestUsers: users.slice().sort(function (a, b) { return b.registeredAt - a.registeredAt; }).slice(0, 6).map(uStats)
+        latestUsers: users.slice().sort(function (a, b) { return b.registeredAt - a.registeredAt; }).slice(0, 6).map(uStats),
+        latestAnonymousVisitors: anonymousVisitors.slice().sort(function (a, b) { return b.lastSeenAtMs - a.lastSeenAtMs; }).slice(0, 5)
       };
     },
     getUsers: function (f, p) {
@@ -134,6 +159,16 @@
         if (f.status && u.status !== f.status) return false;
         if (f.registeredFrom && Date.parse(u.registeredAt) < Date.parse(f.registeredFrom)) return false;
         if (f.registeredTo && Date.parse(u.registeredAt) > Date.parse(f.registeredTo) + DAY) return false;
+        return true;
+      });
+      return sortPage(list, p);
+    },
+    getAnonymousVisitors: function (f, p) {
+      f = f || {};
+      var list = anonymousVisitors.filter(function (v) {
+        if (!inRange(v.lastSeenAtMs, f)) return false;
+        var query = f.visitorSearch || (!f.userId ? f.search : '');
+        if (query && (v.visitorKey + ' ' + v.lastPath).toLowerCase().indexOf(query.toLowerCase()) < 0) return false;
         return true;
       });
       return sortPage(list, p);
@@ -190,6 +225,7 @@
     exportReport: function (type, f) {
       var rows;
       if (type === 'users') rows = raw.getUsers(f, { pageSize: 5000 }).items;
+      else if (type === 'visitors') rows = raw.getAnonymousVisitors(f, { pageSize: 5000 }).items;
       else if (type === 'sessions') rows = raw.getSessions(f, { pageSize: 5000 }).items;
       else if (type === 'courses') rows = raw.getCourseAnalytics(f).items.map(function (x) { return { course: x.title, visits: x.visits, uniqueUsers: x.uniqueUsers, resourceClicks: x.resourceClicks }; });
       else if (type === 'resources') rows = raw.getResourceAnalytics(f).items;

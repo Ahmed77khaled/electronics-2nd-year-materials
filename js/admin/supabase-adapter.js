@@ -110,6 +110,28 @@
     });
   }
 
+  async function fetchFilteredAnonymousEvents(client, filters) {
+    var f = filters || {};
+    var resourceIds = null;
+    if (f.resourceType) {
+      var resources = await fetchAllRows(function () {
+        return client.from('resources').select('id').eq('resource_type', f.resourceType).order('id', { ascending: true });
+      });
+      resourceIds = resources.map(function (resource) { return resource.id; });
+      if (!resourceIds.length) return [];
+    }
+    return fetchAllRows(function () {
+      var query = addDateRange(
+        client.from('anonymous_activity_events').select('*'),
+        f, 'occurred_at'
+      );
+      if (f.courseId) query = query.eq('course_id', f.courseId);
+      if (f.eventName) query = query.eq('event_name', f.eventName);
+      if (resourceIds !== null) query = query.in('resource_id', resourceIds);
+      return query.order('occurred_at', { ascending: true }).order('id', { ascending: true });
+    });
+  }
+
   function sortAndPage(items, pagination, defaultField, defaultPageSize) {
     var p = pagination || {};
     var sort = p.sort || { field: defaultField, dir: 'desc' };
@@ -218,11 +240,25 @@
       }),
       fetchAllRows(function () {
         return client.from('resources').select('id, title, resource_type').order('id', { ascending: true });
-      })
+      }),
+      fetchAllRows(function () {
+        return client.from('admin_anonymous_visitor_summary').select('*')
+          .order('last_seen_at', { ascending: false }).order('id', { ascending: true });
+      }),
+      fetchFilteredAnonymousEvents(client, f),
+      fetchAllRows(function () {
+        return addDateRange(
+          client.from('anonymous_sessions').select('id, visitor_id, started_at, active_seconds'),
+          f, 'started_at'
+        ).order('started_at', { ascending: true }).order('id', { ascending: true });
+      }),
+      client.from('anonymous_sessions').select('id, visitor_id').is('ended_at', null)
+        .gte('last_heartbeat_at', new Date(Date.now() - 5 * 60 * 1000).toISOString())
     ]);
 
     if (results[3].error) throw results[3].error;
     if (results[4].error) throw results[4].error;
+    if (results[10].error) throw results[10].error;
     var students = results[0] || [];
     var events = results[1] || [];
     var sessions = results[2] || [];
@@ -230,6 +266,10 @@
     var activeSessions = results[4].data || [];
     var courses = results[5] || [];
     var resources = results[6] || [];
+    var anonymousVisitorRows = results[7] || [];
+    var anonymousEvents = results[8] || [];
+    var anonymousSessions = results[9] || [];
+    var activeAnonymousSessions = results[10].data || [];
 
     var studentMap = {}, courseMap = {}, resourceMap = {};
     students.forEach(function (student) {
@@ -265,6 +305,27 @@
       if (session.user_id) activeNowIds[session.user_id] = true;
     });
 
+    var anonymousVisitorIds = {}, anonymousActiveVisitorIds = {}, anonymousDaily = {};
+    var anonymousPageViews = 0, anonymousSessionIds = {};
+    anonymousEvents.forEach(function (event) {
+      if (event.visitor_id) anonymousVisitorIds[event.visitor_id] = true;
+      if (event.event_name === 'page_view') anonymousPageViews++;
+      var day = String(event.occurred_at || '').slice(0, 10);
+      if (day) {
+        anonymousDaily[day] = anonymousDaily[day] || { visitors: {}, pageViews: 0, events: 0 };
+        anonymousDaily[day].events++;
+        if (event.visitor_id) anonymousDaily[day].visitors[event.visitor_id] = true;
+        if (event.event_name === 'page_view') anonymousDaily[day].pageViews++;
+      }
+    });
+    anonymousSessions.forEach(function (session) {
+      if (session.visitor_id) anonymousVisitorIds[session.visitor_id] = true;
+      if (session.id) anonymousSessionIds[session.id] = true;
+    });
+    activeAnonymousSessions.forEach(function (session) {
+      if (session.visitor_id) anonymousActiveVisitorIds[session.visitor_id] = true;
+    });
+
     var registrations = {};
     students.forEach(function (student) {
       var date = String(student.registered_at || '').slice(0, 10);
@@ -285,6 +346,14 @@
     });
     var registrationRows = Object.keys(registrations).sort().map(function (date) {
       return { date: date, value: registrations[date] };
+    });
+    var anonymousDailyRows = Object.keys(anonymousDaily).sort().map(function (date) {
+      return {
+        date: date,
+        visitors: Object.keys(anonymousDaily[date].visitors).length,
+        pageViews: anonymousDaily[date].pageViews,
+        events: anonymousDaily[date].events
+      };
     });
 
     var recentActivity = events.slice().sort(function (a, b) {
@@ -344,18 +413,36 @@
         totalSeconds: seconds,
         avgSessionSeconds: sessions.length ? Math.round(seconds / sessions.length) : 0,
         pageViews: null,
-        resourceClicks: totalResourceClicks
+        resourceClicks: totalResourceClicks,
+        anonymousVisitors: Object.keys(anonymousVisitorIds).length,
+        anonymousSessions: Object.keys(anonymousSessionIds).length,
+        anonymousActiveNow: Object.keys(anonymousActiveVisitorIds).length,
+        anonymousPageViews: anonymousPageViews
       },
       series: {
         dailyActive: dailyRows.map(function (row) { return { date: row.date, value: row.activeUsers }; }),
         sessions: dailyRows.map(function (row) { return { date: row.date, value: row.sessions }; }),
         registrations: registrationRows,
-        events: dailyRows.map(function (row) { return { date: row.date, value: row.events }; })
+        events: dailyRows.map(function (row) { return { date: row.date, value: row.events }; }),
+        dailyVisitors: anonymousDailyRows.map(function (row) { return { date: row.date, value: row.visitors }; }),
+        anonymousPageViews: anonymousDailyRows.map(function (row) { return { date: row.date, value: row.pageViews }; })
       },
       topCourses: topCourses,
       topResources: topResources,
       recentActivity: recentActivity,
-      latestUsers: latestUsers
+      latestUsers: latestUsers,
+      latestAnonymousVisitors: anonymousVisitorRows.filter(function (visitor) {
+        return !!anonymousVisitorIds[visitor.id];
+      }).slice(0, 5).map(function (visitor) {
+        return {
+          visitorKey: visitor.visitor_key,
+          firstSeenAt: visitor.first_seen_at,
+          lastSeenAt: visitor.last_seen_at,
+          lastPath: visitor.last_path,
+          pageViews: Number(visitor.page_view_count) || 0,
+          activeNow: !!visitor.active_now
+        };
+      })
     };
   }
 
@@ -426,7 +513,85 @@
     return { items: items, total: total };
   }
 
-  // 4. getUserDetails
+  // 4. getAnonymousVisitors — one row per pseudonymous browser identifier.
+  async function getAnonymousVisitors(filters, pagination) {
+    var client = getClient();
+    if (!client) throw new Error('Supabase client unavailable');
+    var f = filters || {};
+    var results = await Promise.all([
+      fetchFilteredAnonymousEvents(client, f),
+      fetchAllRows(function () {
+        return addDateRange(
+          client.from('anonymous_sessions').select('*'),
+          f, 'started_at'
+        ).order('started_at', { ascending: true }).order('id', { ascending: true });
+      })
+    ]);
+    var events = results[0] || [];
+    var sessions = results[1] || [];
+    var visitorIds = Array.from(new Set(
+      events.map(function (event) { return event.visitor_id; })
+        .concat(sessions.map(function (session) { return session.visitor_id; }))
+        .filter(Boolean)
+    ));
+    if (!visitorIds.length) return { items: [], total: 0 };
+
+    var result = await client.from('admin_anonymous_visitor_summary').select('*')
+      .in('id', visitorIds).order('last_seen_at', { ascending: false }).order('id', { ascending: true });
+    if (result.error) throw result.error;
+
+    var eventStats = {}, sessionStats = {};
+    events.forEach(function (event) {
+      var value = eventStats[event.visitor_id] || (eventStats[event.visitor_id] = {
+        pageViews: 0, eventCount: 0, lastSeenAt: null, lastPath: null
+      });
+      value.eventCount++;
+      if (event.event_name === 'page_view') value.pageViews++;
+      if (!value.lastSeenAt || event.occurred_at > value.lastSeenAt) {
+        value.lastSeenAt = event.occurred_at;
+        value.lastPath = event.page_path;
+      }
+    });
+    sessions.forEach(function (session) {
+      var value = sessionStats[session.visitor_id] || (sessionStats[session.visitor_id] = {
+        sessions: 0, totalSeconds: 0, lastSeenAt: null, lastPath: null
+      });
+      value.sessions++;
+      value.totalSeconds += Number(session.active_seconds) || 0;
+      if (!value.lastSeenAt || session.started_at > value.lastSeenAt) {
+        value.lastSeenAt = session.started_at;
+        value.lastPath = session.last_path || session.entry_path || '/';
+      }
+    });
+
+    var items = (result.data || []).map(function (visitor) {
+      var activity = eventStats[visitor.id] || { pageViews: 0, eventCount: 0, lastSeenAt: null, lastPath: null };
+      var session = sessionStats[visitor.id] || { sessions: 0, totalSeconds: 0, lastSeenAt: null, lastPath: null };
+      return {
+        id: visitor.id,
+        visitorKey: visitor.visitor_key,
+        firstSeenAt: visitor.first_seen_at,
+        lastSeenAt: activity.lastSeenAt || session.lastSeenAt || visitor.last_seen_at,
+        firstPath: visitor.first_path,
+        lastPath: activity.lastPath || session.lastPath || visitor.last_path,
+        sessions: session.sessions,
+        totalSeconds: session.totalSeconds,
+        pageViews: activity.pageViews,
+        eventCount: activity.eventCount,
+        activeNow: !!visitor.active_now
+      };
+    });
+    if (f.search) {
+      var term = String(f.search).toLowerCase().trim();
+      items = items.filter(function (visitor) {
+        return String(visitor.visitorKey || '').toLowerCase().indexOf(term) !== -1 ||
+          String(visitor.lastPath || '').toLowerCase().indexOf(term) !== -1;
+      });
+    }
+    return sortAndPage(items, pagination, 'lastSeenAt', 15);
+  }
+
+  // 5. getUserDetails
   async function getUserDetails(userId) {
     var client = getClient();
     if (!client) throw new Error('Supabase client unavailable');
@@ -777,7 +942,42 @@
     var filename = 'report_' + type + '_' + new Date().toISOString().slice(0, 10) + '.csv';
     var headers, rows = [];
 
-    if (type === 'users') {
+    if (type === 'visitors') {
+      var anonEvents = await fetchFilteredAnonymousEvents(client, f);
+      var aggregateByVisitor = {};
+      anonEvents.forEach(function (event) {
+        if (!event.visitor_id) return;
+        aggregateByVisitor[event.visitor_id] = aggregateByVisitor[event.visitor_id] || {
+          sessions: {}, pageViews: 0, events: 0
+        };
+        var aggregate = aggregateByVisitor[event.visitor_id];
+        aggregate.events++;
+        if (event.session_id) aggregate.sessions[event.session_id] = true;
+        if (event.event_name === 'page_view') aggregate.pageViews++;
+      });
+      var visitorIds = Object.keys(aggregateByVisitor);
+      if (visitorIds.length) {
+        var visitorResult = await client.from('admin_anonymous_visitor_summary').select('*')
+          .in('id', visitorIds).order('last_seen_at', { ascending: false }).order('id', { ascending: true });
+        if (visitorResult.error) throw visitorResult.error;
+        rows = (visitorResult.data || []).filter(function (visitor) {
+          var visitorQuery = f.visitorSearch || (!f.userId ? f.search : '');
+          if (!visitorQuery) return true;
+          var term = String(visitorQuery).toLowerCase().trim();
+          return String(visitor.visitor_key || '').toLowerCase().indexOf(term) !== -1 ||
+            String(visitor.last_path || '').toLowerCase().indexOf(term) !== -1;
+        }).map(function (visitor) {
+          var aggregate = aggregateByVisitor[visitor.id] || { sessions: {}, pageViews: 0, events: 0 };
+          return [
+            visitor.visitor_key, visitor.first_seen_at, visitor.last_seen_at,
+            Object.keys(aggregate.sessions).length, aggregate.pageViews, aggregate.events,
+            visitor.first_path || '', visitor.last_path || ''
+          ];
+        });
+      }
+      headers = ['Anonymous Visitor Key', 'First Seen', 'Last Seen', 'Sessions in Period',
+        'Page Views in Period', 'Events in Period', 'First Page', 'Last Page'];
+    } else if (type === 'users') {
       var results = await Promise.all([
         fetchAllRows(function () { return client.from('admin_student_summary').select('*').order('registered_at', { ascending: false }).order('user_id', { ascending: true }); }),
         fetchFilteredEvents(client, f),
@@ -900,6 +1100,7 @@
       getCourseAnalytics: getCourseAnalytics,
       getResourceAnalytics: getResourceAnalytics,
       exportReport: exportReport,
+      getAnonymousVisitors: getAnonymousVisitors,
       getFilterOptions: getFilterOptions,
       signOut: signOut
     });

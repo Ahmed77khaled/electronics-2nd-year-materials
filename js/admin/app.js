@@ -229,7 +229,9 @@
     ['registeredUsers', 'إجمالي المسجّلين', U.num], ['activeUsers', 'المستخدمون النشطون (الفترة)', U.num], ['activeNow', 'نشطون الآن', U.num],
     ['activeToday', 'نشطون اليوم', U.num], ['activeWeek', 'نشطون هذا الأسبوع', U.num], ['totalSessions', 'إجمالي الجلسات', U.num],
     ['sessionsToday', 'جلسات اليوم', U.num], ['totalSeconds', 'إجمالي وقت التصفح', U.dur], ['avgSessionSeconds', 'متوسط مدة الجلسة', U.dur],
-    ['pageViews', 'مرات فتح الصفحات', U.num], ['resourceClicks', 'ضغطات الموارد', U.num]
+    ['pageViews', 'مرات فتح الصفحات (المسجلون)', U.num], ['resourceClicks', 'ضغطات الموارد', U.num],
+    ['anonymousVisitors', 'الزوار بدون تسجيل (الفترة)', U.num], ['anonymousActiveNow', 'زوار نشطون الآن', U.num],
+    ['anonymousSessions', 'جلسات الزوار', U.num], ['anonymousPageViews', 'مرات فتح الصفحات (الزوار)', U.num]
   ];
   function overview() {
     main.innerHTML = pageHead('نظرة عامة') + U.skeleton('kpis');
@@ -239,12 +241,19 @@
       var card = function (title, body) { return '<section class="card"><h3 class="card-t">' + title + '</h3>' + body + '</section>'; };
       var recent = (o.recentActivity || []).length ? '<ul class="feed">' + o.recentActivity.map(function (e) { return '<li><div><strong>' + userLink(e.userId, e.userName) + '</strong> — ' + esc(U.eventLabel(e.eventName)) + (evContext(e) ? '<div class="tl-meta">' + evContext(e) + '</div>' : '') + '</div><time>' + U.dateTime(e.occurredAt) + '</time></li>'; }).join('') + '</ul>' : U.empty('لا يوجد نشاط حديث');
       var latest = (o.latestUsers || []).length ? '<ul class="feed">' + o.latestUsers.map(function (u) { return '<li><div class="who">' + U.avatar(u) + '<div><strong>' + userLink(u.id, u.name) + '</strong><div class="tl-meta" dir="ltr">' + esc(u.email || '') + '</div></div></div><time>' + U.date(u.registeredAt) + '</time></li>'; }).join('') + '</ul>' : U.empty('لا يوجد مستخدمون جدد');
+      var latestAnonymous = (o.latestAnonymousVisitors || []).length ? '<ul class="feed">' + o.latestAnonymousVisitors.map(function (v) {
+        var shortKey = String(v.visitorKey || '').slice(0, 8);
+        return '<li><div><strong>زائر ' + esc(shortKey) + '</strong><div class="tl-meta mono" dir="ltr">' + esc(v.lastPath || '/') + '</div></div><time>' + U.dateTime(v.lastSeenAt) + '</time></li>';
+      }).join('') + '</ul>' : U.empty('لا يوجد زوار مجهولون في الفترة المحددة');
       main.innerHTML = pageHead('نظرة عامة') +
         '<div class="kpi-grid">' + KPIS.map(function (d) { return '<div class="card kpi"><span class="kpi-l">' + d[1] + '</span><strong class="kpi-v">' + d[2](k[d[0]]) + '</strong></div>'; }).join('') + '</div>' +
         '<div class="grid-2">' + card('المستخدمون النشطون يوميًا', U.chart(s.dailyActive, { label: 'المستخدمون النشطون يوميًا' })) + card('الجلسات عبر الزمن', U.chart(s.sessions, { label: 'الجلسات' })) +
         card('اتجاه التسجيل', U.chart(s.registrations, { bars: true, label: 'التسجيلات' })) + card('اتجاه التفاعل (الأحداث)', U.chart(s.events, { label: 'الأحداث' })) +
+        card('الزوار بدون تسجيل يوميًا', U.chart(s.dailyVisitors, { label: 'الزوار بدون تسجيل' })) +
+        card('مشاهدات صفحات الزوار', U.chart(s.anonymousPageViews, { label: 'مشاهدات صفحات الزوار' })) +
         card('المواد الأكثر زيارة', U.barList(o.topCourses)) + card('الموارد الأكثر ضغطًا', U.barList(o.topResources)) +
-        card('آخر نشاط للمستخدمين', recent) + card('أحدث المسجّلين', latest) + '</div>';
+        card('آخر نشاط للمستخدمين المسجّلين', recent) + card('أحدث المسجّلين', latest) +
+        card('أحدث الزوار بدون تسجيل', latestAnonymous) + '</div>';
     }, load);
   }
 
@@ -371,6 +380,24 @@
       { label: 'عدد الأحداث', render: function (x) { return U.num(x.eventCount); } },
       { label: 'الحالة', render: function (x) { return U.chip(U.SESSION_STATUS, x.status); } }]);
   }
+  var visitors = listView('visitors', {
+    title: 'الزوار بدون تسجيل', sub: 'معرّفات عشوائية للمتصفحات — لا تتضمن أسماء أو بريدًا إلكترونيًا.',
+    defaults: { search: '' }, sort: { field: 'lastSeenAt', dir: 'desc' },
+    fields: [{ type: 'search', key: 'search', ph: 'بحث بمعرّف الزائر أو الصفحة' }],
+    fetch: function (f, p) { return D.call('getAnonymousVisitors', f, p); },
+    cols: [
+      { label: 'الزائر', render: function (v) { return '<span class="mono" dir="ltr">' + esc(String(v.visitorKey || '').slice(0, 16)) + '…</span>'; } },
+      { label: 'أول زيارة', sort: 'firstSeenAt', render: function (v) { return U.dateTime(v.firstSeenAt); } },
+      { label: 'آخر زيارة', sort: 'lastSeenAt', render: function (v) { return U.dateTime(v.lastSeenAt); } },
+      { label: 'الجلسات', render: function (v) { return U.num(v.sessions); } },
+      { label: 'الصفحات المفتوحة', render: function (v) { return U.num(v.pageViews); } },
+      { label: 'الأحداث', render: function (v) { return U.num(v.eventCount); } },
+      { label: 'وقت التصفح', render: function (v) { return U.dur(v.totalSeconds); } },
+      { label: 'آخر صفحة', render: function (v) { return '<span class="mono" dir="ltr">' + esc(v.lastPath || '/') + '</span>'; } },
+      { label: 'الحالة', render: function (v) { return v.activeNow ? '<span class="chip chip-ok">نشط الآن</span>' : '<span class="chip chip-muted">غير نشط</span>'; } }
+    ]
+  });
+
   var sessions = listView('sessions', {
     title: 'الجلسات', defaults: { search: '', courseId: '', duration: '', sessionStatus: '' }, sort: { field: 'startedAt', dir: 'desc' },
     fields: [{ type: 'search', key: 'search', ph: 'بحث بالمستخدم (الاسم أو البريد)' }, { type: 'select', key: 'courseId', label: 'المادة', options: courseOptions },
@@ -602,14 +629,14 @@
   }
 
   // ---------------- Reports ----------------
-  var REPORTS = [['users', 'تقرير نشاط المستخدمين', 'بيانات كل مستخدم: الجلسات والوقت والضغطات.'], ['sessions', 'تقرير الجلسات', 'كل الجلسات المسجّلة في الفترة المحددة.'],
+  var REPORTS = [['users', 'تقرير نشاط المستخدمين', 'بيانات المستخدمين المسجّلين: الجلسات والوقت والضغطات.'], ['visitors', 'تقرير الزوار بدون تسجيل', 'معرّفات الزوار العشوائية والزيارات والصفحات خلال الفترة.'], ['sessions', 'تقرير الجلسات', 'كل الجلسات المسجّلة في الفترة المحددة.'],
     ['courses', 'تقرير تحليلات المواد', 'الزيارات والمستخدمون الفريدون وضغطات الموارد لكل مادة.'], ['resources', 'تقرير تحليلات الموارد', 'الضغطات والمستخدمون الفريدون لكل مورد.'], ['daily', 'تقرير النشاط اليومي', 'ملخص النشاط يومًا بيوم.']];
   function reports() {
-    var s = vs.reports = vs.reports || { f: { search: '', userId: '', courseId: '', resourceType: '', eventName: '' } };
+    var s = vs.reports = vs.reports || { f: { search: '', userId: '', visitorSearch: '', courseId: '', resourceType: '', eventName: '' } };
     main.innerHTML = pageHead('التقارير والتصدير', 'يتم التصدير بصيغة CSV وفق الفترة والفلاتر المحددة أدناه — الفترة: ' + rangeLabel()) +
-      toolbarHtml([{ type: 'search', key: 'search', ph: 'ابحث عن اسم المستخدم…', autocomplete: true }, { type: 'select', key: 'courseId', label: 'المادة', options: courseOptions }, { type: 'select', key: 'resourceType', label: 'نوع المورد', options: typeOptions }, { type: 'select', key: 'eventName', label: 'نوع النشاط', options: eventOptions }], s) +
+      toolbarHtml([{ type: 'search', key: 'search', ph: 'ابحث عن اسم المستخدم…', autocomplete: true }, { type: 'search', key: 'visitorSearch', ph: 'معرّف الزائر (اختياري)' }, { type: 'select', key: 'courseId', label: 'المادة', options: courseOptions }, { type: 'select', key: 'resourceType', label: 'نوع المورد', options: typeOptions }, { type: 'select', key: 'eventName', label: 'نوع النشاط', options: eventOptions }], s) +
       '<div class="cards-3">' + REPORTS.map(function (r) { return '<article class="card report"><h3>' + r[1] + '</h3><p class="muted">' + r[2] + '</p><button type="button" class="btn btn-primary" data-report="' + r[0] + '">' + U.icon('download') + ' تصدير CSV</button></article>'; }).join('') + '</div>';
-    bindToolbar(s, function () {}, { search: '', userId: '', courseId: '', resourceType: '', eventName: '' });
+    bindToolbar(s, function () {}, { search: '', userId: '', visitorSearch: '', courseId: '', resourceType: '', eventName: '' });
     bindReportUserAutocomplete(s);
     qa('[data-report]', main).forEach(function (button) {
       button.addEventListener('click', function () {
@@ -654,7 +681,7 @@
   }
 
 
-  var NAV = [['overview', 'نظرة عامة', 'overview', overview], ['users', 'المستخدمون', 'users', users], ['sessions', 'الجلسات', 'sessions', sessions], ['logs', 'سجل النشاط', 'logs', logs],
+  var NAV = [['overview', 'نظرة عامة', 'overview', overview], ['users', 'المستخدمون', 'users', users], ['visitors', 'الزوار بدون تسجيل', 'users', visitors], ['sessions', 'الجلسات', 'sessions', sessions], ['logs', 'سجل النشاط', 'logs', logs],
     ['courses', 'تحليلات المواد', 'courses', courses], ['resources', 'تحليلات الموارد', 'resources', resources], ['reports', 'التقارير', 'reports', reports]];
 
   function route() {

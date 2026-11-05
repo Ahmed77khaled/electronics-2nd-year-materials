@@ -322,6 +322,117 @@
     }
   }
 
+  async function startAnonymousVisitorSession(visitorKey, clientSessionId, entryPath) {
+    if (!isReady || !clientInstance || !isUuid(visitorKey) || !isUuid(clientSessionId)) return null;
+    // Do not double-count a visitor who is already signed in.
+    var user = await getCurrentUser();
+    if (user && user.id) return null;
+    try {
+      var result = await clientInstance.rpc('start_anonymous_visitor_session', {
+        p_visitor_key: visitorKey,
+        p_client_session_id: clientSessionId,
+        p_entry_path: entryPath || getPathname()
+      });
+      if (result && result.error) throw result.error;
+      return result && isUuid(result.data) ? result.data : null;
+    } catch (err) {
+      if (root.APP_CONFIG && root.APP_CONFIG.analytics && root.APP_CONFIG.analytics.debug) {
+        console.warn('[SupabaseBridge] Could not start anonymous visitor session:', err.message || err);
+      }
+      return null;
+    }
+  }
+
+  async function heartbeatAnonymousVisitorSession(visitorKey, clientSessionId) {
+    if (!isReady || !clientInstance || !isUuid(visitorKey) || !isUuid(clientSessionId)) return 0;
+    try {
+      var result = await clientInstance.rpc('heartbeat_anonymous_visitor_session', {
+        p_visitor_key: visitorKey,
+        p_client_session_id: clientSessionId
+      });
+      if (result && result.error) return 0;
+      return Number(result && result.data) || 0;
+    } catch (err) {
+      return 0;
+    }
+  }
+
+  async function endAnonymousVisitorSession(visitorKey, clientSessionId) {
+    if (!isReady || !clientInstance || !isUuid(visitorKey) || !isUuid(clientSessionId)) return false;
+    try {
+      var result = await clientInstance.rpc('end_anonymous_visitor_session', {
+        p_visitor_key: visitorKey,
+        p_client_session_id: clientSessionId
+      });
+      return !!(result && !result.error && result.data);
+    } catch (err) {
+      return false;
+    }
+  }
+
+  async function trackAnonymousVisitorEvent(eventData, visitorKey, clientSessionId) {
+    if (!isReady || !clientInstance || !isUuid(visitorKey) || !isUuid(clientSessionId)) {
+      return { success: false, reason: 'unconfigured_or_invalid_visitor' };
+    }
+
+    eventData = eventData || {};
+    var user = await getCurrentUser();
+    if (user && user.id) return { success: false, reason: 'authenticated_user_skipped' };
+
+    if (mappingPromise) await mappingPromise;
+
+    var resourceUuid = null;
+    if (eventData.resource_id) {
+      resourceUuid = isUuid(eventData.resource_id)
+        ? eventData.resource_id
+        : resourceKeyToUuidMap[eventData.resource_id] || null;
+      if (!resourceUuid) {
+        mappingPromise = prefetchUuidMappings();
+        await mappingPromise;
+        resourceUuid = resourceKeyToUuidMap[eventData.resource_id] || null;
+      }
+      if (!isUuid(resourceUuid)) return { success: false, reason: 'resource_mapping_missing' };
+    }
+
+    var courseUuid = null;
+    if (eventData.course_id) {
+      courseUuid = isUuid(eventData.course_id)
+        ? eventData.course_id
+        : courseSlugToUuidMap[eventData.course_id] || null;
+      if (!courseUuid) {
+        mappingPromise = prefetchUuidMappings();
+        await mappingPromise;
+        courseUuid = courseSlugToUuidMap[eventData.course_id] || null;
+      }
+      if (!isUuid(courseUuid)) return { success: false, reason: 'course_mapping_missing' };
+    }
+
+    var allowedKeys = ['resource_type', 'filter_name', 'result_count', 'search_length', 'source'];
+    var cleanProps = {};
+    if (eventData.properties && typeof eventData.properties === 'object' && !Array.isArray(eventData.properties)) {
+      allowedKeys.forEach(function(key) {
+        var value = eventData.properties[key];
+        if (value !== undefined && value !== null) cleanProps[key] = value;
+      });
+    }
+
+    try {
+      var result = await clientInstance.rpc('track_anonymous_visitor_event', {
+        p_visitor_key: visitorKey,
+        p_client_session_id: clientSessionId,
+        p_event_name: eventData.event_name,
+        p_course_id: courseUuid,
+        p_resource_id: resourceUuid,
+        p_page_path: eventData.page_path || getPathname(),
+        p_properties: cleanProps
+      });
+      if (result && result.error) return { success: false, error: result.error };
+      return { success: true, event_id: result ? result.data : null };
+    } catch (err) {
+      return { success: false, error: err.message || String(err) };
+    }
+  }
+
   function onAuthStateChange(listener) {
     if (typeof listener !== 'function') return function() {};
     authListeners.push(listener);
@@ -397,6 +508,10 @@
     getActiveSessionId: function() { return activeDbSessionId; },
     trackPortalEvent: trackPortalEvent,
     insertActivityEvent: trackPortalEvent,
+    startAnonymousVisitorSession: startAnonymousVisitorSession,
+    heartbeatAnonymousVisitorSession: heartbeatAnonymousVisitorSession,
+    endAnonymousVisitorSession: endAnonymousVisitorSession,
+    trackAnonymousVisitorEvent: trackAnonymousVisitorEvent,
     onAuthStateChange: onAuthStateChange,
     isUuid: isUuid,
     reinit: init
