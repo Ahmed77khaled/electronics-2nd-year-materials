@@ -17,7 +17,7 @@ function testCase(name, fn) {
 }
 
 testCase('Page views stay unavailable until page_view tracking is implemented', function () {
-  assert(adapter.includes('pageViews: pageViewsSum'));
+  assert(adapter.includes('pageViews: null'));
   assert(adapter.includes('var pageViewsSum = null;'));
   assert(!adapter.includes('metrics.total_page_views'));
   assert(!migration.includes('total_page_views'));
@@ -64,8 +64,8 @@ testCase('Interrupted sessions are distinguished using last heartbeat age', func
 });
 
 testCase('Active-now KPI counts distinct users rather than open sessions', function () {
-  assert(adapter.includes('activeUserIds[session.user_id] = true'));
-  assert(adapter.includes('activeNow: Object.keys(activeUserIds).length'));
+  assert(adapter.includes('activeNowIds[session.user_id] = true'));
+  assert(adapter.includes('activeNow: Object.keys(activeNowIds).length'));
 });
 
 testCase('New or unavailable metrics remain null instead of being fabricated as zero', function () {
