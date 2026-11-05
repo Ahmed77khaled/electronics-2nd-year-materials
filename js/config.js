@@ -13,10 +13,10 @@
   var APP_CONFIG = {
     supabase: {
       // 1. Enter your Supabase Project URL (e.g. 'https://your-project.supabase.co')
-      url: '',
+      url: 'https://qgcabhbwlzalvfqpdzfl.supabase.co',
 
       // 2. Enter your Supabase public Anon / Publishable Key (e.g. 'eyJhbGciOi...')
-      anonKey: ''
+      anonKey: 'sb_publishable_54sxb1vc-L00EjQhNg7AVQ_BjPs_oxu'
     },
     analytics: {
       // Set to true to see telemetry events in the browser console
