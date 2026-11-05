@@ -66,7 +66,7 @@
     var f = filters || {};
     return Promise.all([
       f.search ? fetchAllRows(function () {
-        return client.from('admin_student_summary').select('user_id, full_name, email');
+        return client.from('admin_student_summary').select('user_id, full_name, email').order('user_id', { ascending: true });
       }).then(function (users) {
         var term = String(f.search).toLowerCase().trim();
         return users.filter(function (user) {
@@ -75,7 +75,7 @@
         }).map(function (user) { return user.user_id; });
       }) : Promise.resolve(null),
       f.resourceType ? fetchAllRows(function () {
-        return client.from('resources').select('id').eq('resource_type', f.resourceType);
+        return client.from('resources').select('id').eq('resource_type', f.resourceType).order('id', { ascending: true });
       }).then(function (resources) {
         return resources.map(function (resource) { return resource.id; });
       }) : Promise.resolve(null)
@@ -91,7 +91,7 @@
 
   function buildEventQuery(client, filters, constraints, withCount) {
     var f = filters || {};
-    var query = client.from('activity_events').select('*', withCount ? { count: 'exact' } : undefined);
+    var query = client.from('activity_events').select('*', withCount ? { count: 'exact' } : {});
     query = addDateRange(query, f, 'occurred_at');
     if (f.userId) query = query.eq('user_id', f.userId);
     if (f.sessionId) query = query.eq('session_id', f.sessionId);
@@ -201,23 +201,23 @@
 
     var results = await Promise.all([
       fetchAllRows(function () {
-        return client.from('admin_student_summary').select('*').order('registered_at', { ascending: false });
+        return client.from('admin_student_summary').select('*').order('registered_at', { ascending: false }).order('user_id', { ascending: true });
       }),
       fetchFilteredEvents(client, f),
       fetchAllRows(function () {
         return addDateRange(
           client.from('admin_session_analytics').select('id, user_id, started_at, active_seconds'),
           f, 'started_at'
-        ).order('started_at', { ascending: true });
+        ).order('started_at', { ascending: true }).order('id', { ascending: true });
       }),
       client.from('admin_overview_metrics').select('*').maybeSingle(),
       client.from('sessions').select('id, user_id').is('ended_at', null)
         .gte('last_heartbeat_at', new Date(Date.now() - 5 * 60 * 1000).toISOString()),
       fetchAllRows(function () {
-        return client.from('courses').select('id, title');
+        return client.from('courses').select('id, title').order('id', { ascending: true });
       }),
       fetchAllRows(function () {
-        return client.from('resources').select('id, title, resource_type');
+        return client.from('resources').select('id, title, resource_type').order('id', { ascending: true });
       })
     ]);
 
@@ -507,12 +507,12 @@
     var results = await Promise.all([
       fetchAllRows(function () {
         return addDateRange(
-          client.from('admin_session_analytics').select('*'),
+          client.from('admin_session_analytics').select('*').order('started_at', { ascending: true }).order('id', { ascending: true }),
           f, 'started_at'
         );
       }),
       fetchAllRows(function () {
-        return client.from('admin_student_summary').select('user_id, full_name, email');
+        return client.from('admin_student_summary').select('user_id, full_name, email').order('user_id', { ascending: true });
       })
     ]);
     var students = {};
@@ -664,8 +664,8 @@
     if (!client) throw new Error('Supabase client unavailable');
     var f = filters || {};
     var results = await Promise.all([
-      fetchAllRows(function () { return client.from('courses').select('id, slug, title'); }),
-      fetchAllRows(function () { return client.from('resources').select('id, title'); }),
+      fetchAllRows(function () { return client.from('courses').select('id, slug, title').order('id', { ascending: true }); }),
+      fetchAllRows(function () { return client.from('resources').select('id, title').order('id', { ascending: true }); }),
       fetchFilteredEvents(client, f)
     ]);
     var courseMap = {}, resourceMap = {}, aggregates = {};
@@ -721,8 +721,8 @@
     if (!client) throw new Error('Supabase client unavailable');
     var f = filters || {};
     var results = await Promise.all([
-      fetchAllRows(function () { return client.from('resources').select('id, title, resource_key, resource_type, course_id'); }),
-      fetchAllRows(function () { return client.from('courses').select('id, title'); }),
+      fetchAllRows(function () { return client.from('resources').select('id, title, resource_key, resource_type, course_id').order('id', { ascending: true }); }),
+      fetchAllRows(function () { return client.from('courses').select('id, title').order('id', { ascending: true }); }),
       fetchFilteredEvents(client, f)
     ]);
     var courseMap = {}, resources = {}, aggregates = {};
@@ -777,7 +777,7 @@
 
     if (type === 'users') {
       var results = await Promise.all([
-        fetchAllRows(function () { return client.from('admin_student_summary').select('*').order('registered_at', { ascending: false }); }),
+        fetchAllRows(function () { return client.from('admin_student_summary').select('*').order('registered_at', { ascending: false }).order('user_id', { ascending: true }); }),
         fetchFilteredEvents(client, f),
         fetchAllRows(function () {
           return addDateRange(client.from('admin_session_analytics').select('user_id, active_seconds, started_at'), f, 'started_at');
