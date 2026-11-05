@@ -330,11 +330,54 @@
     };
   }
 
+  async function signInWithGoogle(options) {
+    if (!isReady || !clientInstance) return { error: new Error('Supabase client not ready') };
+    var opts = options || {};
+    var redirectTo = opts.redirectTo || (root.location ? (root.location.origin + root.location.pathname) : undefined);
+    return await clientInstance.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: redirectTo
+      }
+    });
+  }
+
+  async function signOut() {
+    if (!isReady || !clientInstance) return { error: null };
+    try {
+      if (root.PortalTracker && typeof root.PortalTracker.pauseDatabaseSession === 'function') {
+        try {
+          await Promise.race([
+            root.PortalTracker.pauseDatabaseSession('manual-signout', Date.now(), true),
+            new Promise(function(resolve) { setTimeout(resolve, 1500); })
+          ]);
+        } catch (e) {}
+      } else if (activeDbSessionId) {
+        try {
+          await Promise.race([
+            endPortalSession(activeDbSessionId),
+            new Promise(function(resolve) { setTimeout(resolve, 1500); })
+          ]);
+        } catch (e) {}
+      }
+
+      activeDbSessionId = null;
+      activeDbSessionUserId = null;
+      return await clientInstance.auth.signOut();
+    } catch (err) {
+      activeDbSessionId = null;
+      activeDbSessionUserId = null;
+      return { error: err };
+    }
+  }
+
   root.SupabaseBridge = {
     isConfigured: function() { return isConfigured; },
     isReady: function() { return isReady; },
     getClient: function() { return clientInstance; },
     getCurrentUser: getCurrentUser,
+    signInWithGoogle: signInWithGoogle,
+    signOut: signOut,
     startPortalSession: startPortalSession,
     heartbeatPortalSession: heartbeatPortalSession,
     endPortalSession: endPortalSession,

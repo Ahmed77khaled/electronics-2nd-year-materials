@@ -1,10 +1,28 @@
-# Supabase RLS / RPC Integration Test Plan
+# Supabase RLS / RPC Integration Test Plan & Security Verification
 
-These tests are intended for a **dedicated Supabase staging project**, after applying migrations
-001 through 005 in order and seeding the 7 course rows / 75 resources. They have not been run
-against the live project.
+These tests are designed for a **dedicated Supabase staging project**, after sequentially applying
+migrations `001` through `006` in order and seeding the 7 course rows / 75 resources.
 
-## Preconditions
+---
+
+## 🏗️ Three-Tier Testing Architecture
+
+To avoid confusing static analysis with runtime database assertions, our verification protocol separates
+all validation into three distinct, non-overlapping tiers:
+
+| Tier | Environment | Scope | Verification Tool |
+| :--- | :--- | :--- | :--- |
+| **Tier 1: Static Code & Schema AST Audit** | Local / CI | Validates file existence, SQL DDL structure, policy syntax, topological ordering, foreign keys, and secret isolation. | `node tests/test-suite.js` & GitHub Actions |
+| **Tier 2: Automated In-Memory Mock Tests** | Local Node.js | Validates client-side debounce, deduplication, event classification, guest `user_id = null`, and heartbeat lifecycle. | `node tests/test-suite.js` |
+| **Tier 3: Live PostgreSQL Transactions** | Live Supabase Staging | Validates real engine RLS enforcement, role separation (`anon` vs `authenticated`), student cross-reading isolation, and admin authorization. | Supabase SQL Editor (`ROLLBACK`) |
+
+> ⚠️ **CRITICAL NOTE:** Static text searches or AST checks (Tiers 1 & 2) do **NOT** prove that a live
+> PostgreSQL database enforces RLS. Live engine verification (Tier 3) requires executing the SQL blocks below
+> in Supabase SQL Editor with actual user tokens/claims.
+
+---
+
+## Preconditions for Live PostgreSQL Testing (Tier 3)
 
 1. Create two disposable authenticated users through Supabase Auth (Student 1 and Student 2).
    Do not insert incomplete rows into `auth.users` manually.
@@ -13,40 +31,92 @@ against the live project.
 4. As the trusted database owner, manually promote only that third user:
    ```sql
    insert into public.admin_users (user_id, role)
-   values ('<ADMIN_USER_UUID>', 'admin')
+   values ('<ADMIN_USER_UUID>', 'owner')
    on conflict (user_id) do update set role = excluded.role;
    ```
 5. Replace the UUID placeholders in each test block with the real UUIDs from Supabase Auth.
 6. Run each test block separately in SQL Editor. Every block uses its own transaction and ends
-   with `ROLLBACK`, so test sessions/events are discarded.
+   with `ROLLBACK`, so test sessions/events are safely discarded.
 
-> SQL Editor role/claim simulation verifies PostgreSQL grants, RLS, and the `auth.uid()`-based
-> policies. It is not a substitute for testing the real Google OAuth redirect and browser JWT flow.
+---
 
-## Migration order
+## Sequential Migration Order
 
-1. `001_student_analytics_foundation.sql`
-2. `002_secure_tracking_rpcs.sql`
-3. `003_seed_courses_and_resources.sql`
-4. `004_admin_analytics_views.sql`
-5. `005_admin_analytics_authorization.sql`
+1. `001_student_analytics_foundation.sql` — Base tables, profile trigger, initial RLS.
+2. `002_secure_tracking_rpcs.sql` — Revokes table writes; introduces SECURITY DEFINER RPCs.
+3. `003_seed_courses_and_resources.sql` — 5-tier topological seed of 7 courses & 75 resources.
+4. `004_admin_analytics_views.sql` — Defines initial aggregate reporting views.
+5. `005_admin_analytics_authorization.sql` — Restricts views with `is_admin()` and security_invoker.
+6. `006_backend_security_hardening.sql` — Separates anon/authenticated policies, explicit least privilege grants, and hardens admin_student_summary.
 
-Do not release the analytics views before migration 005 is applied.
+---
 
-## Test 1 — Anonymous visitor
+## Test 1 — Anonymous Visitor (Tier 3 Live Test)
 
-Expected: active courses/resources remain publicly readable; tracking RPCs and table writes are denied.
+**Expected:** Active courses and resources are publicly readable; inactive items are hidden; table mutations, admin tables, and tracking RPCs are completely denied.
 
 ```sql
 begin;
 set local role anon;
 select set_config('request.jwt.claims', '{"role":"anon"}', true);
 
+-- 1. Active resources must be readable (Expected: 75)
 select count(*) as active_resources
 from public.resources
 where is_active = true;
--- Expected after seed: 75.
 
+-- 2. Inactive resources must NOT be readable by anon (Expected: 0)
+select count(*) as inactive_resources
+from public.resources
+where is_active = false;
+
+-- 3. Anonymous direct write on courses must be denied
+do $$
+declare
+  v_blocked boolean := false;
+begin
+  begin
+    insert into public.courses (slug, title) values ('hack-course', 'Hack');
+  exception when insufficient_privilege then
+    v_blocked := true;
+  end;
+  if not v_blocked then
+    raise exception 'FAIL: anon directly inserted a course';
+  end if;
+end $$;
+
+-- 4. Anonymous direct write on resources must be denied
+do $$
+declare
+  v_blocked boolean := false;
+begin
+  begin
+    insert into public.resources (course_id, resource_key, title)
+    values ('11111111-1111-4111-8111-111111111111'::uuid, 'HACK_RES', 'Hack');
+  exception when insufficient_privilege then
+    v_blocked := true;
+  end;
+  if not v_blocked then
+    raise exception 'FAIL: anon directly inserted a resource';
+  end if;
+end $$;
+
+-- 5. Anonymous caller cannot read admin_users table
+do $$
+declare
+  v_blocked boolean := false;
+begin
+  begin
+    perform count(*) from public.admin_users;
+  exception when insufficient_privilege then
+    v_blocked := true;
+  end;
+  if not v_blocked then
+    raise exception 'FAIL: anon read admin_users table directly';
+  end if;
+end $$;
+
+-- 6. Anonymous caller cannot execute tracking RPCs
 do $$
 declare
   v_blocked boolean := false;
@@ -64,9 +134,11 @@ end $$;
 rollback;
 ```
 
-## Test 2 — Student isolation, session ownership, and administrative denial
+---
 
-Replace both student UUIDs. Both users must already exist in Auth and have profile rows.
+## Test 2 — Student Isolation, Session Ownership & Admin Denial (Tier 3 Live Test)
+
+Replace `<STUDENT_1_UUID>` and `<STUDENT_2_UUID>` with real UUIDs from Supabase Auth.
 
 ```sql
 begin;
@@ -164,7 +236,7 @@ begin
     raise exception 'FAIL: Student 2 wrote to Student 1 session';
   end if;
 
-  -- All four global analytics views must return no rows to a student.
+  -- All five admin analytics views must return no rows to a student.
   if exists (select 1 from public.admin_course_analytics) then
     raise exception 'FAIL: Student can read admin_course_analytics';
   end if;
@@ -176,6 +248,9 @@ begin
   end if;
   if exists (select 1 from public.admin_overview_metrics) then
     raise exception 'FAIL: Student can read admin_overview_metrics';
+  end if;
+  if exists (select 1 from public.admin_student_summary) then
+    raise exception 'FAIL: Student can read admin_student_summary';
   end if;
 
   -- Student 2 cannot self-promote.
@@ -210,13 +285,11 @@ end $$;
 rollback;
 ```
 
-Expected: the block completes without an exception. The expected-denial checks are caught inside
-the PL/pgSQL block; an uncaught exception indicates a failed test or setup issue.
+---
 
-## Test 3 — Administrator access
+## Test 3 — Administrator Access (Tier 3 Live Test)
 
-Replace the admin UUID with the account manually inserted into `public.admin_users`.
-Use seeded courses/resources from migration 003.
+Replace `<ADMIN_USER_UUID>` with the account manually provisioned in `public.admin_users`.
 
 ```sql
 begin;
@@ -250,37 +323,11 @@ begin
   if not exists (select 1 from public.admin_overview_metrics) then
     raise exception 'FAIL: administrator cannot read overview metrics';
   end if;
+
+  if not exists (select 1 from public.admin_student_summary) then
+    raise exception 'FAIL: administrator cannot read student summary';
+  end if;
 end $$;
 
 rollback;
 ```
-
-## Test 4 — Browser session lifecycle
-
-Run these checks in a staging copy of the website with valid public Supabase URL/key:
-
-1. Sign in as Student 1 and interact with the portal (click, scroll, key input). Confirm exactly one
-   row is created in `sessions` for the active tab and one `session_started` event exists.
-2. Wait for a heartbeat while the page is visible, focused, and recently active. Confirm
-   `active_seconds` increases by no more than 45 seconds per heartbeat.
-3. Open a Drive/YouTube link in a new tab or switch browser tabs. Confirm the portal session is
-   ended shortly after the portal loses focus/visibility. No heartbeat should run while away.
-4. Return to the portal and interact again. Confirm a new database session starts; the old session
-   is not reused.
-5. Leave the portal idle for more than 45 seconds, then interact again. Confirm a new session
-   baseline is created and the idle gap is not credited.
-6. Refresh or close the tab. Confirm `pagehide` attempts to end the active session. Treat this
-   as best effort because browsers and network shutdown can interrupt unload-time requests.
-7. Open two separate portal tabs under the same account. Each tab must have its own database
-   session UUID; neither tab may heartbeat or end the other tab's session.
-8. Sign out, then sign in as Student 2. Confirm the old user's session is never used for Student 2.
-
-## What these tests do not prove
-
-- They do not prove that a person is paying attention to the screen. Client-side activity and
-  heartbeat logic can only provide a best-effort estimate.
-- They do not measure time spent in Google Drive or YouTube.
-- SQL Editor claim simulation does not verify the Google OAuth provider configuration or
-  GitHub Pages redirect settings.
-- The browser can fail to deliver an unload-time end RPC; stale open sessions should be treated
-  as inactive after heartbeat expiry and optionally cleaned up by a trusted scheduled job.

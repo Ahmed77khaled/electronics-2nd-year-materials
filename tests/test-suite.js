@@ -18,6 +18,7 @@ const migration002 = fs.readFileSync(path.join(ROOT_DIR, 'supabase', 'migrations
 const migration003 = fs.readFileSync(path.join(ROOT_DIR, 'supabase', 'migrations', '003_seed_courses_and_resources.sql'), 'utf-8').replace(/\r\n/g, '\n');
 const migration004 = fs.readFileSync(path.join(ROOT_DIR, 'supabase', 'migrations', '004_admin_analytics_views.sql'), 'utf-8').replace(/\r\n/g, '\n');
 const migration005 = fs.readFileSync(path.join(ROOT_DIR, 'supabase', 'migrations', '005_admin_analytics_authorization.sql'), 'utf-8').replace(/\r\n/g, '\n');
+const migration006 = fs.readFileSync(path.join(ROOT_DIR, 'supabase', 'migrations', '006_backend_security_hardening.sql'), 'utf-8').replace(/\r\n/g, '\n');
 const trackerSource = fs.readFileSync(path.join(ROOT_DIR, 'js', 'tracker.js'), 'utf-8');
 const supabaseClientSource = fs.readFileSync(path.join(ROOT_DIR, 'js', 'supabase-client.js'), 'utf-8');
 const integrationPlan = fs.readFileSync(path.join(ROOT_DIR, 'supabase', 'tests', 'RLS_RPC_INTEGRATION_TEST_PLAN.md'), 'utf-8');
@@ -606,6 +607,49 @@ it('Integration plan tests anon, two students, admin, and all views with rollbac
     .forEach(token => assert(integrationPlan.toLowerCase().includes(token.toLowerCase()), 'Missing test-plan coverage: ' + token));
 });
 
+
+
+// ---------------------------------------------------------------------------
+// 17. Backend Security Hardening & Least Privilege (Migration 006)
+// ---------------------------------------------------------------------------
+console.log('Test Suite 17: Backend Security Hardening & Principle of Least Privilege');
+it('Migration 006 separates anon and authenticated read policies on courses and resources', () => {
+  assert(migration006.includes('drop policy if exists "courses_read_active" on public.courses'));
+  assert(migration006.includes('drop policy if exists "resources_read_active" on public.resources'));
+  assert(migration006.includes('create policy "courses_read_active_anon"'));
+  assert(migration006.includes('create policy "resources_read_active_anon"'));
+  assert(migration006.includes('create policy "courses_read_active_authenticated"'));
+  assert(migration006.includes('create policy "resources_read_active_authenticated"'));
+
+  const anonCoursePolicy = migration006.slice(
+    migration006.indexOf('create policy "courses_read_active_anon"'),
+    migration006.indexOf('create policy "resources_read_active_anon"')
+  );
+  assert(!anonCoursePolicy.includes('is_admin()'), 'Anon course policy must not call is_admin()');
+
+  const anonResourcePolicy = migration006.slice(
+    migration006.indexOf('create policy "resources_read_active_anon"'),
+    migration006.indexOf('create policy "courses_read_active_authenticated"')
+  );
+  assert(!anonResourcePolicy.includes('is_admin()'), 'Anon resource policy must not call is_admin()');
+});
+
+it('Migration 006 enforces explicit least privilege grants and revokes trigger execution', () => {
+  assert(migration006.includes('revoke all on public.admin_users from public, anon, authenticated'));
+  assert(migration006.includes('revoke insert, update, delete on public.courses from anon, authenticated'));
+  assert(migration006.includes('revoke insert, update, delete on public.resources from anon, authenticated'));
+  assert(migration006.includes('revoke all on function public.handle_new_user() from public, anon, authenticated'));
+  assert(migration006.includes('revoke all on function public.set_updated_at() from public, anon, authenticated'));
+  assert(migration006.includes('create or replace view public.admin_student_summary'));
+  assert(migration006.includes('(select public.is_admin())'));
+});
+
+it('SupabaseBridge provides orderly signOut with database session flush and in-flight wait', () => {
+  assert(supabaseClientSource.includes('async function signOut()'));
+  assert(supabaseClientSource.includes('root.PortalTracker.pauseDatabaseSession'));
+  assert(supabaseClientSource.includes('signInWithGoogle'));
+  assert(trackerSource.includes('var inFlightWait = heartbeatPromise'));
+});
 
 async function runAllTests() {
   for (const test of tests) {

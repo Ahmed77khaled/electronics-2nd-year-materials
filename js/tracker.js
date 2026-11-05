@@ -211,10 +211,11 @@
     // Flush only on a confirmed transition away from the page/unload. A quick
     // focus return followed by a later interaction must not credit the time
     // spent in the background as active portal time.
+    var inFlightWait = heartbeatPromise ? heartbeatPromise.catch(function() { return null; }) : Promise.resolve(null);
     var mayFlushFinalInterval = allowFinalHeartbeat === true && finalInteractionTime &&
       (Date.now() - finalInteractionTime) <= IDLE_TIMEOUT_MS;
-    var finalHeartbeat = mayFlushFinalInterval ? sendHeartbeat(sessionId) : Promise.resolve(null);
-    var closePromise = finalHeartbeat.then(function() {
+    var finalHeartbeat = mayFlushFinalInterval ? sendHeartbeat(sessionId) : inFlightWait;
+    var closePromise = Promise.resolve(finalHeartbeat).then(function() {
       return root.SupabaseBridge.endPortalSession(sessionId);
     }).then(function(result) {
       if (root.APP_CONFIG && root.APP_CONFIG.analytics && root.APP_CONFIG.analytics.debug) {
@@ -390,7 +391,7 @@
     if (root.SupabaseBridge && typeof root.SupabaseBridge.onAuthStateChange === 'function') {
       root.SupabaseBridge.onAuthStateChange(function(event, session) {
         if (event === 'SIGNED_OUT' || !session || !session.user) {
-          pauseDatabaseSession('signed-out', lastInteractionTime, isForeground());
+          pauseDatabaseSession('signed-out', lastInteractionTime, false);
         } else {
           // Do not auto-start time on auth refresh. The next user interaction
           // creates the session baseline and demonstrates portal engagement.
