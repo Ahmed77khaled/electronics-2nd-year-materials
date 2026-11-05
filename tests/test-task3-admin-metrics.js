@@ -18,7 +18,7 @@ function testCase(name, fn) {
 
 testCase('Page views stay unavailable until page_view tracking is implemented', function () {
   assert(adapter.includes('pageViews: null'));
-  assert(adapter.includes('var pageViewsSum = null;'));
+  assert(!adapter.includes('pageViewsSum'));
   assert(!adapter.includes('metrics.total_page_views'));
   assert(!migration.includes('total_page_views'));
   assert(!/dispatchEvent\s*\(\s*['"]page_view['"]/.test(tracker));
@@ -42,8 +42,8 @@ testCase('Last login remains unavailable until login_success tracking is impleme
 });
 
 testCase('Course visits count course_click events only', function () {
-  assert(adapter.includes('visits: toNullableNumber(c.course_visit_count)'));
-  assert(adapter.includes('value: toNullableNumber(c.course_visit_count)'));
+  assert(adapter.includes("if (event.event_name === 'course_click') aggregate.visits++"));
+  assert(adapter.includes('visits: value.visits'));
   assert(migration.includes("count(*) filter (where e.event_name = 'course_click') as course_visit_count"));
 });
 
@@ -71,7 +71,7 @@ testCase('Active-now KPI counts distinct users rather than open sessions', funct
 testCase('New or unavailable metrics remain null instead of being fabricated as zero', function () {
   assert(adapter.includes('function toNullableNumber(value)'));
   assert(adapter.includes('if (value === null || value === undefined || value === \'\') return null;'));
-  assert(adapter.includes('pageViews: pageViewsSum'));
+  assert(adapter.includes('pageViews: null'));
 });
 
 testCase('All new analytics views retain admin-only access and RLS semantics', function () {
