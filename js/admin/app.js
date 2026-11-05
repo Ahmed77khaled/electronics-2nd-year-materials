@@ -178,7 +178,12 @@
   function eventOptions() { return [['', 'كل الأحداث']].concat(Object.keys(U.EVENTS).map(function (k) { return [k, U.EVENTS[k]]; })); }
   function fieldHtml(f, val) {
     val = val == null ? '' : val;
-    if (f.type === 'search') return '<label class="fld fld-search">' + U.icon('search') + '<input type="search" data-f="' + f.key + '" placeholder="' + esc(f.ph) + '" value="' + esc(val) + '" aria-label="' + esc(f.ph) + '" autocomplete="off"></label>';
+    if (f.type === 'search') {
+      var searchControl = '<label class="fld fld-search">' + U.icon('search') + '<input type="search" data-f="' + f.key + '" placeholder="' + esc(f.ph) + '" value="' + esc(val) + '" aria-label="' + esc(f.ph) + '" autocomplete="off"></label>';
+      if (!f.autocomplete) return searchControl;
+      return '<div class="autocomplete-wrap" data-autocomplete-wrap="' + esc(f.key) + '">' + searchControl +
+        '<div class="autocomplete-list" data-autocomplete-list="' + esc(f.key) + '" role="listbox" aria-label="اقتراحات المستخدمين" hidden></div></div>';
+    }
     var opts = typeof f.options === 'function' ? f.options() : f.options;
     if (f.type === 'select') return '<label class="fld"><span>' + esc(f.label) + '</span><select data-f="' + f.key + '">' + opts.map(function (o) { return '<option value="' + esc(o[0]) + '"' + (String(val) === String(o[0]) ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('') + '</select></label>';
     return '<label class="fld"><span>' + esc(f.label) + '</span><input type="date" data-f="' + f.key + '" value="' + esc(val) + '"></label>';
@@ -512,15 +517,100 @@
     bindToolbar(s, load, { courseId: '', resourceType: '' }); load();
   }
 
+  function bindReportUserAutocomplete(s) {
+    var input = main.querySelector('[data-f="search"]');
+    var wrap = main.querySelector('[data-autocomplete-wrap="search"]');
+    var list = main.querySelector('[data-autocomplete-list="search"]');
+    if (!input || !wrap || !list || !D.has('getUsers')) return;
+
+    var requestId = 0;
+    var timer = null;
+
+    function closeSuggestions() {
+      requestId++;
+      if (timer) { clearTimeout(timer); timer = null; }
+      list.hidden = true;
+      list.innerHTML = '';
+    }
+
+    function renderSuggestions(items, query) {
+      if (input.value.trim() !== query) return;
+      if (!items.length) {
+        list.innerHTML = '<div class="autocomplete-empty">لا توجد أسماء مطابقة</div>';
+        list.hidden = false;
+        return;
+      }
+      list.innerHTML = items.map(function (user) {
+        var name = user.name || user.email || 'مستخدم بدون اسم';
+        return '<button type="button" class="autocomplete-option" role="option" data-user-suggestion data-user-id="' +
+          esc(user.id) + '" data-user-name="' + esc(name) + '">' +
+          '<span>' + esc(name) + '</span>' +
+          (user.email ? '<small dir="ltr">' + esc(user.email) + '</small>' : '') +
+          '</button>';
+      }).join('');
+      list.hidden = false;
+    }
+
+    input.addEventListener('input', function () {
+      s.f.userId = '';
+      var query = input.value.trim();
+      var currentRequest = ++requestId;
+      if (timer) clearTimeout(timer);
+      if (query.length < 2) {
+        list.hidden = true;
+        list.innerHTML = '';
+        return;
+      }
+
+      list.innerHTML = '<div class="autocomplete-empty">جارٍ البحث عن المستخدمين…</div>';
+      list.hidden = false;
+      timer = setTimeout(function () {
+        D.call('getUsers', { search: query }, {
+          page: 1,
+          pageSize: 8,
+          sort: { field: 'registeredAt', dir: 'desc' }
+        }).then(function (result) {
+          if (currentRequest !== requestId) return;
+          renderSuggestions(result && Array.isArray(result.items) ? result.items : [], query);
+        }).catch(function () {
+          if (currentRequest !== requestId) return;
+          list.innerHTML = '<div class="autocomplete-empty">تعذّر تحميل الأسماء. حاول مرة أخرى.</div>';
+          list.hidden = false;
+        });
+      }, 220);
+    });
+
+    list.addEventListener('click', function (event) {
+      var option = event.target && event.target.closest ? event.target.closest('[data-user-suggestion]') : null;
+      if (!option) return;
+      var userId = option.getAttribute('data-user-id');
+      var userName = option.getAttribute('data-user-name') || '';
+      if (!userId) return;
+      input.value = userName;
+      s.f.search = userName;
+      s.f.userId = userId;
+      closeSuggestions();
+    });
+
+    main.addEventListener('click', function (event) {
+      if (!wrap.contains(event.target)) closeSuggestions();
+      if (event.target && event.target.closest && event.target.closest('[data-reset]')) {
+        s.f.userId = '';
+        closeSuggestions();
+      }
+    });
+  }
+
   // ---------------- Reports ----------------
   var REPORTS = [['users', 'تقرير نشاط المستخدمين', 'بيانات كل مستخدم: الجلسات والوقت والضغطات.'], ['sessions', 'تقرير الجلسات', 'كل الجلسات المسجّلة في الفترة المحددة.'],
     ['courses', 'تقرير تحليلات المواد', 'الزيارات والمستخدمون الفريدون وضغطات الموارد لكل مادة.'], ['resources', 'تقرير تحليلات الموارد', 'الضغطات والمستخدمون الفريدون لكل مورد.'], ['daily', 'تقرير النشاط اليومي', 'ملخص النشاط يومًا بيوم.']];
   function reports() {
-    var s = vs.reports = vs.reports || { f: { search: '', courseId: '', resourceType: '', eventName: '' } };
+    var s = vs.reports = vs.reports || { f: { search: '', userId: '', courseId: '', resourceType: '', eventName: '' } };
     main.innerHTML = pageHead('التقارير والتصدير', 'يتم التصدير بصيغة CSV وفق الفترة والفلاتر المحددة أدناه — الفترة: ' + rangeLabel()) +
-      toolbarHtml([{ type: 'search', key: 'search', ph: 'المستخدم (اختياري)' }, { type: 'select', key: 'courseId', label: 'المادة', options: courseOptions }, { type: 'select', key: 'resourceType', label: 'نوع المورد', options: typeOptions }, { type: 'select', key: 'eventName', label: 'نوع النشاط', options: eventOptions }], s) +
+      toolbarHtml([{ type: 'search', key: 'search', ph: 'ابحث عن اسم المستخدم…', autocomplete: true }, { type: 'select', key: 'courseId', label: 'المادة', options: courseOptions }, { type: 'select', key: 'resourceType', label: 'نوع المورد', options: typeOptions }, { type: 'select', key: 'eventName', label: 'نوع النشاط', options: eventOptions }], s) +
       '<div class="cards-3">' + REPORTS.map(function (r) { return '<article class="card report"><h3>' + r[1] + '</h3><p class="muted">' + r[2] + '</p><button type="button" class="btn btn-primary" data-report="' + r[0] + '">' + U.icon('download') + ' تصدير CSV</button></article>'; }).join('') + '</div>';
-    bindToolbar(s, function () {}, { search: '', courseId: '', resourceType: '', eventName: '' });
+    bindToolbar(s, function () {}, { search: '', userId: '', courseId: '', resourceType: '', eventName: '' });
+    bindReportUserAutocomplete(s);
     qa('[data-report]', main).forEach(function (button) {
       button.addEventListener('click', function () {
         if (button.disabled) return;
