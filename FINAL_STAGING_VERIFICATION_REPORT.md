@@ -1,10 +1,10 @@
-# 🏛️ Final Staging & Security Verification Report
+# 🏛️ Staging & Security Verification Report
 ## Electronics 2nd Year Materials Portal — Student Analytics & Secure Tracking System
 
 > **Branch:** `feature/resource-registry-supabase`  
 > **Repository:** `Ahmed77khaled/electronics-2nd-year-materials`  
 > **Date:** 2026-11-05  
-> **Assessment Scope:** End-to-end verification of Resource Registry, Database Migrations 001–005, RPC tracking security, session lifecycle, and administrative authorization.
+> **Assessment Scope:** Static code verification, automated regression tests (34/34), SQL migrations 001–005 audit, link parity, session lifecycle, and staging readiness roadmap.
 
 ---
 
@@ -13,23 +13,25 @@
 | Test Domain | Status | Evidence | Notes |
 | :--- | :---: | :--- | :--- |
 | **JavaScript Syntax Checks** | **PASS** | `node --check` passed across 5 core files | Zero syntax warnings or errors. |
-| **Static & Regression Tests** | **PASS** | `node tests/test-suite.js` (34/34 passed) | 100% test pass rate across 16 test suites. |
-| **SQL Migrations Structure** | **PASS** | Migrations 001 to 005 sequentially validated | No syntax collision; topological FK consistency verified. |
-| **Seed 75 Resources** | **PASS** | 5-tier topological ordering & parity verified | Exact tripartite parity across JSON, SQL, and JS Registry. |
-| **Seed CLI Security Guard** | **PASS** | `scripts/seed-supabase.js` rejects anon keys | Exits with status `1` when anon key or missing credentials passed. |
-| **Student RLS & Isolation** | **PASS** | Static policy audit in Migration 001/002/005 | Table writes revoked from `anon` and `authenticated`; reads scoped to `auth.uid()`. |
-| **RPC Tracking Security** | **PASS** | `track_portal_event` whitelisted properties only | Properties restricted to 5 non-sensitive keys; raw queries blocked. |
-| **Session Lifecycle & Active Time** | **PASS** | Focus/visibility listeners & heartbeat guards | Heartbeat pauses on blur/hidden; Drive/YouTube time excluded. |
-| **Admin Analytics Authorization** | **PASS** | Views use `security_invoker` + `is_admin()` filter | Students cannot query global analytics; anon access revoked. |
-| **Live Database Staging Tests** | **BLOCKED** | Neither Docker nor Supabase CLI installed locally | Requires remote Staging Supabase URL & service role key. |
-| **Google OAuth Live Authentication** | **BLOCKED** | External Google Client ID / Secret required | Static contract verified; live OAuth requires project secrets. |
-| **GitHub Actions CI Workflow** | **PASS** | Workflow run on `feature/resource-registry-supabase` | Verified via GitHub CLI (`gh run list`). |
+| **Automated Test Suite** | **PASS** | `node tests/test-suite.js` (34/34 passed) | 100% test pass rate across 16 test suites. |
+| **Strict HTML Link-to-Registry Parity** | **PASS** | All 67 `data-resource-id` links in `index.html` checked | Every single URL matches `data/resource-registry.json` 1:1. |
+| **SQL Migrations Structure & Order** | **PASS** | Migrations 001 to 005 sequentially audited | Non-conflicting; strict 5-tier topological FK ordering. |
+| **Seed 75 Resources Parity** | **PASS** | Tripartite parity across JSON, SQL, and JS Registry | Exactly 75 entities indexed without collision. |
+| **Seed CLI Security Guard** | **PASS** | `scripts/seed-supabase.js` rejects anon keys | Accepts `SUPABASE_SECRET_KEY` or `SUPABASE_SERVICE_ROLE_KEY`. |
+| **Static RLS & RPC Policy Audit** | **PASS** | Static policy inspection in Migrations 001/002/005 | Table writes revoked; tracking mediated via `SECURITY DEFINER` RPC. |
+| **Session Lifecycle & Active Time Logic** | **PASS** | Focus/visibility listeners & heartbeat guards | Heartbeat pauses on blur/hidden; Drive/YouTube time excluded. |
+| **Admin Analytics Authorization** | **PASS** | Views use `security_invoker` + `is_admin()` filter | Static definition ensures non-admins receive 0 rows. |
+| **RLS / RPC Integration Test Plan Structure** | **PASS** | `RLS_RPC_INTEGRATION_TEST_PLAN.md` verified | Transactional test blocks with `ROLLBACK` prepared for staging. |
+| **GitHub Actions CI Workflow** | **PASS** | Workflow run [#41937758613](https://github.com/Ahmed77khaled/electronics-2nd-year-materials/actions/runs/41937758613) | Completed with status `Success` on Ubuntu runner. |
+| **Live Database Migrations Execution** | **PENDING** | Docker/Supabase CLI/psql absent locally | Requires live execution on Supabase Staging SQL Editor. |
+| **Live RLS Multi-User Engine Execution** | **PENDING** | Static test plan prepared, live run pending | Requires executing test plan transactions against live PostgreSQL. |
+| **Live Google OAuth Authentication** | **PENDING** | External Client ID / Secret required | Static contract verified; live OAuth requires staging project. |
 
 ---
 
 ## 1. Environment Details
 
-* **Operating System:** Windows 10/11 (Environment: Local developer workstation)
+* **Operating System:** Windows 10/11 (Local developer workstation)
 * **Node.js Version:** `v24.18.0`
 * **Git Version:** `git version 2.47.1.windows.1`
 * **GitHub CLI:** `gh version 2.62.0`
@@ -41,7 +43,7 @@
 
 ## 2. Migration Execution & Structure Results
 
-The portal uses 5 modular, sequentially numbered migrations:
+The portal migrations are strictly sequenced to avoid numbering collisions:
 
 | Migration File | Primary Responsibility | Validation Method | Result |
 | :--- | :--- | :--- | :---: |
@@ -62,38 +64,41 @@ The portal uses 5 modular, sequentially numbered migrations:
   4. `public.resources` (Primary key: `id uuid`, Unique: `resource_key`, Foreign Keys: `course_id`, `parent_resource_id`)
   5. `public.sessions` (Primary key: `id uuid`, Foreign Key: `user_id`)
   6. `public.activity_events` (Primary key: `id bigint`, Foreign Keys: `user_id`, `session_id`, `course_id`, `resource_id`)
-* **Constraints:** `resources.course_id` retains its `NOT NULL` constraint; root resources are mapped to the dedicated `general-term-1` course.
+* **Constraints:** `resources.course_id` retains its `NOT NULL` constraint; root resource is mapped to `general-term-1`.
 * **RLS Status:** Enabled on all 6 tables. Direct table mutations are revoked from client roles (`anon`, `authenticated`).
 
 ---
 
-## 4. Resource Registry & Seed Verification
+## 4. Resource Registry & Strict Link Verification
 
-* **Total Resources:** Exactly 75 entities indexed.
-* **Topological Order:**
+* **Total Resources in Registry:** Exactly 75 unique entities.
+* **HTML Link Verification:**
+  * Every `<a>` element in `index.html` possessing a `data-resource-id` (67 elements total) is checked against `registryJson.flatIndex[resourceId].url`.
+  * URL entities decoded from HTML entities (e.g., `&amp;` -> `&`) match `url` in `resource-registry.json` with **zero mismatches**.
+* **Topological Order (5 Tiers):**
   * Tier 0: Root (`ROOT_DRIVE_TERM1`) — Parent: `null`
   * Tier 1: Subjects (6 items: `SUB_01_EMF` to `SUB_06_HUMANITIES`) — Parent: `ROOT_DRIVE_TERM1`
   * Tier 2: Subject Cards (6 items: `SUB_XX_MAIN`) — Parent: Corresponding Subject
   * Tier 3: Subfolders (16 items: `SUB_XX_MAT`, `SUB_XX_EXAMS`, etc.) — Parent: Subject Card
   * Tier 4: Children (46 items: Chips, Playlists, Items) — Parent: Corresponding Subfolder or Card
-* **Parity:** 100% tripartite parity across `data/resource-registry.json`, `data/resourceRegistry.js`, and `supabase/migrations/003_seed_courses_and_resources.sql`.
-* **Idempotency:** Re-running Migration 003 or `scripts/seed-supabase.js` utilizes `ON CONFLICT (resource_key) DO UPDATE` and preserves pre-existing UUIDs.
+* **Idempotency:** Re-running Migration 003 or `scripts/seed-supabase.js` utilizes `ON CONFLICT (resource_key) DO UPDATE` and preserves UUIDs.
 
 ---
 
-## 5. Row Level Security (RLS) & RPC Security Audit
+## 5. Row Level Security (RLS) & RPC Security Audit (Static Analysis)
 
 * **Anonymous (`anon`) Policy:**
   * `SELECT`: Permitted only on `courses` and `resources` where `is_active = true`.
   * `INSERT/UPDATE/DELETE`: Revoked on all tables.
-  * RPC Calls: Execution of `start_portal_session`, `track_portal_event`, `heartbeat_portal_session`, `end_portal_session` revoked from `anon`.
+  * RPC Calls: Execution of tracking RPCs is revoked from `anon`.
 * **Student (`authenticated`) Policy:**
   * Direct table `INSERT/UPDATE/DELETE` on `activity_events`, `sessions`, and `profiles` revoked.
   * All mutations routed through RPCs bound strictly to `auth.uid()`.
-  * Session cross-writing blocked: `track_portal_event` verifies `s.user_id = auth.uid()` before recording any event.
+  * Cross-writing blocked: `track_portal_event` verifies `s.user_id = auth.uid()` before recording any event.
   * Property allowlist: Only `resource_type`, `filter_name`, `result_count`, `search_length`, and `source` accepted; payload size capped at 512 bytes.
 * **Admin Privilege Escalation:**
-  * Self-promotion impossible: No insert/update policies exist on `admin_users` for authenticated users.
+  * No insert/update policies exist on `admin_users` for authenticated users.
+* **Verification Note:** These security boundaries are verified at the DDL/SQL specification level. Live verification with actual PostgreSQL engine tokens belongs to Phase 3 (RLS & RPC Live Tests).
 
 ---
 
@@ -129,120 +134,66 @@ The portal uses 5 modular, sequentially numbered migrations:
 
 ## 8. Automated Test Suite Results
 
-Test command: `node tests/test-suite.js`
+Test command: `node tests/test-suite.js`  
+Result: **34/34 tests passed (100%)**
 
-```text
-============================================================
-🧪 RUNNING EXTENDED INTEGRATION & SECURITY TEST SUITE
-============================================================
-
-Test Suite 1: Unconfigured Supabase & Offline Resilience
-  ✅ [PASS] SupabaseBridge handles empty config without throwing unhandled exceptions
-  ✅ [PASS] SupabaseBridge returns safe fallbacks for user queries and event insertion when unconfigured
-
-Test Suite 2: Original URLs & Resource Integrity
-  ✅ [PASS] Resource Registry JSON contains exactly 75 verified unique entities
-  ✅ [PASS] All 65 Drive/YouTube links in index.html match registered URLs without corruption
-  ✅ [PASS] Vanilla JS registry module loads seamlessly and matches JSON data
-
-Test Suite 3: Resource ID Extraction & Event Classification
-  ✅ [PASS] Tracker correctly classifies course, folder, chip, and youtube events
-
-Test Suite 4: Event Deduplication & Listener Protection
-  ✅ [PASS] Tracker protects against duplicate script initialization
-
-Test Suite 5: Unauthenticated Student Identity Safety
-  ✅ [PASS] Unauthenticated users have user_id strictly set to null (never spoofed)
-
-Test Suite 6: Security & RPC Policy Audit (001 + 002)
-  ✅ [PASS] Direct client-side INSERT/UPDATE on activity_events and sessions is completely revoked by 002
-  ✅ [PASS] All tracking operations are mediated exclusively through track_portal_event RPC
-  ✅ [PASS] Property allowlist strictly blocks arbitrary JSON or sensitive strings
-
-Test Suite 7: Ordered Migrations & Idempotent Seed Re-run (003 + 004)
-  ✅ [PASS] Migration 003 does NOT alter resources.course_id (preserves NOT NULL constraint from 001)
-  ✅ [PASS] Migration 003 uses ON CONFLICT DO UPDATE for all courses and resources
-  ✅ [PASS] Migration 003 seeds all 75 resources and the 6 main courses + general course
-  ✅ [PASS] Migration 004 defines admin views with security_invoker = true
-
-Test Suite 8: Search & Filter Integration Integrity
-  ✅ [PASS] Search and filter input elements exist and are unmodified in index.html
-  ✅ [PASS] HTML includes all 4 modular scripts at the bottom
-
-Test Suite 9: Mobile & Responsive Layout Integrity
-  ✅ [PASS] Mobile responsive layout styles and touch-friendly rules are intact
-
-Test Suite 10: Strict ID Uniqueness & Non-Collision
-  ✅ [PASS] Zero duplicate resource_key values exist across JSON, SQL, and JS Registry
-
-Test Suite 11: URL Format & Integrity Validation
-  ✅ [PASS] Zero empty or broken URLs in registry and SQL migration
-
-Test Suite 12: Topological Parent-Child Relationship Integrity
-  ✅ [PASS] Every child resource references a valid parent resource that strictly precedes it in SQL 003
-
-Test Suite 13: Exact Tripartite Parity Check
-  ✅ [PASS] JSON, SQL 003, and JS Registry share 100% identical sets of resource keys
-
-Test Suite 14: Seed CLI Security Enforcement
-  ✅ [PASS] Seed CLI rejects legacy anon JWT keys
-  ✅ [PASS] Seed CLI accepts current sb_secret key format in validation-only mode
-  ✅ [PASS] Seed CLI accepts legacy service_role JWT keys in validation-only mode
-  ✅ [PASS] Seed CLI rejects publishable keys for privileged seeding
-  ✅ [PASS] Seed CLI terminates with exit code 1 if credentials are omitted
-  ✅ [PASS] New secret keys are sent only in apikey header; Bearer header is legacy-only
-
-Test Suite 15: Database Session Lifecycle
-  ✅ [PASS] Tracker starts a database session before tracking and never heartbeats a client token
-  ✅ [PASS] Supabase Bridge binds database sessions to the authenticated owner
-  ✅ [PASS] Concurrent session starts are deduplicated and hidden tabs close their database session
-
-Test Suite 16: Admin Analytics Authorization
-  ✅ [PASS] All global analytics views explicitly filter on is_admin()
-  ✅ [PASS] Migration 005 removes PUBLIC/anon grants and grants authenticated SELECT only on guarded views
-  ✅ [PASS] Integration plan tests anon, two students, admin, and all views with rollback
-
-============================================================
-🏁 TEST SUMMARY: 34/34 tests passed (100%)
-============================================================
-```
+Key validated behaviors:
+* SupabaseBridge resilience when unconfigured (safe fallbacks, no exceptions).
+* Strict 1:1 match of all 67 `data-resource-id` links in `index.html` to registry URLs.
+* Zero duplicate `resource_key` values across JSON, SQL, and JS Registry.
+* Seed CLI key classification (supports both modern `SUPABASE_SECRET_KEY` and legacy `SUPABASE_SERVICE_ROLE_KEY`).
+* Focus-loss heartbeat suspension and database session binding.
+* Admin views filtering on `is_admin()`.
 
 ---
 
-## 9. Remaining Manual Configuration for Staging/Production
+## 9. Seed CLI & Environment Variables
 
-To enable live connectivity on Supabase Staging or Production:
-
-1. **Supabase Project Configuration:**
-   * Run migrations `001` through `005` in order via Supabase SQL Editor.
-   * Add the project owner to `admin_users`:
-     ```sql
-     insert into public.admin_users (user_id, role)
-     select id, 'owner' from auth.users where email = 'YOUR_GOOGLE_EMAIL@gmail.com'
-     on conflict (user_id) do update set role = excluded.role;
-     ```
-2. **Frontend Credentials:**
-   * Enter the public project URL and anon/publishable key into [`js/config.js`](file:///C:/Users/msi/.gemini/antigravity/scratch/electronics-2nd-year-materials/js/config.js):
-     ```javascript
-     supabase: {
-       url: 'https://your-project-id.supabase.co',
-       anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
-     }
-     ```
-3. **Google OAuth Provider Configuration:**
-   * In Supabase Dashboard -> Authentication -> Providers -> Google:
-     * Enable Google Provider.
-     * Supply **Google Client ID** and **Google Client Secret** obtained from Google Cloud Console.
-     * Configure Authorized Redirect URI: `https://<your-project-id>.supabase.co/auth/v1/callback`.
+When running `scripts/seed-supabase.js`:
+* **Modern Secret Key:** Set `SUPABASE_SECRET_KEY=sb_secret_...` in the environment.
+* **Legacy Service Role Key:** Set `SUPABASE_SERVICE_ROLE_KEY=eyJ...` in the environment.
+* **Target Project URL:** Set `SUPABASE_URL=https://<your-project-id>.supabase.co`.
+* **Validation Mode:** Run `node scripts/seed-supabase.js --validate-only` to verify key format and registry integrity without performing network calls.
+* **Security Guard:** The CLI strictly rejects `anon` and `publishable` keys, exits with status `1` if credentials are omitted, and refuses keys passed as CLI arguments to avoid shell history leakage.
 
 ---
 
-## 10. Production Readiness Assessment
+## 10. Step-by-Step Staging Verification Plan (Next Phases)
 
-* **Security Posture:** **Production Ready**. All write surfaces are hardened behind allowlisted SECURITY DEFINER RPCs. Zero direct table write privileges exist for browser roles.
-* **Telemetry Reliability:** **Production Ready**. Deduplicated, focus-aware, and does not leak external navigation time into portal engagement metrics.
-* **Integrity & Parity:** **100% verified**. All 75 resources match across JSON, TypeScript, Vanilla JavaScript, and SQL migrations.
-* **Deployment Isolation:** Confined to `feature/resource-registry-supabase`. The `main` branch and live GitHub Pages deployment remain untouched.
+### Phase 2: Supabase Staging Deployment
+1. Create a dedicated Staging project in Supabase.
+2. In Supabase SQL Editor, execute migrations `001` through `005` in order.
+3. Verify that 7 courses and 75 resources are present in `public.resources` and `public.courses`.
+4. Promote the project owner:
+   ```sql
+   insert into public.admin_users (user_id, role)
+   select id, 'owner' from auth.users where email = 'YOUR_EMAIL@gmail.com'
+   on conflict (user_id) do update set role = excluded.role;
+   ```
+
+### Phase 3: RLS & RPC Live Tests
+Execute [`supabase/tests/RLS_RPC_INTEGRATION_TEST_PLAN.md`](file:///C:/Users/msi/.gemini/antigravity/scratch/electronics-2nd-year-materials/supabase/tests/RLS_RPC_INTEGRATION_TEST_PLAN.md):
+1. **Test 1:** Anonymous caller (verify courses/resources visible, RPC writes fail).
+2. **Test 2:** Student 1 session & event creation (verify RPC success).
+3. **Test 3:** Student 2 isolation (verify Student 2 queries return 0 rows for Student 1 data).
+4. **Test 4:** Student attempting to query admin analytics views (verify 0 rows returned).
+5. **Test 5:** Admin querying admin analytics views (verify data returned).
+
+### Phase 4: Google OAuth & Live Browser Testing
+1. Configure Google OAuth Provider in Supabase Dashboard (Client ID & Secret).
+2. Set callback URL: `https://<PROJECT_ID>.supabase.co/auth/v1/callback`.
+3. Put public Staging URL and anon key into [`js/config.js`](file:///C:/Users/msi/.gemini/antigravity/scratch/electronics-2nd-year-materials/js/config.js).
+4. Test student login, active session heartbeat, and external link clicks in real browser.
 
 ---
-*Report certified and committed to repository for technical sign-off.*
+
+## 11. Verification Status & Engineering Readiness Assessment
+
+* **Code & CI Foundation:** **VERIFIED (PASS)**. Zero syntax issues, 34/34 automated tests passing, CI green on GitHub Actions runner.
+* **Telemetry & Logic Hardening:** **VERIFIED (PASS)**. Database session IDs passed correctly; heartbeat paused during external navigation.
+* **Staging Execution:** **PENDING**. Live PostgreSQL migrations and multi-user RLS testing await execution on a dedicated Supabase staging project.
+* **Production Status:** **NOT YET DECLARED**. In accordance with strict software engineering practice, production readiness will be evaluated only after Staging live verification (Phases 2–5) is completed.
+* **Git Status:** All work remains strictly isolated on `feature/resource-registry-supabase`. The `main` branch and live deployment remain untouched.
+
+---
+*Report certified and committed to repository for staging coordination.*

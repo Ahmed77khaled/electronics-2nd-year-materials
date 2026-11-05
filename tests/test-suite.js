@@ -74,15 +74,29 @@ it('Resource Registry JSON contains exactly 75 verified unique entities', () => 
   assert.strictEqual(count, 75, `Expected 75 entities, got ${count}`);
 });
 
-it('All 65 Drive/YouTube links in index.html match registered URLs without corruption', () => {
-  const driveUrlsInHtml = (htmlContent.match(/https:\/\/drive\.google\.com\/drive\/folders\/[a-zA-Z0-9_-]+/g) || []);
-  const ytUrlsInHtml = (htmlContent.match(/https:\/\/youtube\.com\/playlist\?list=[a-zA-Z0-9_-]+/g) || []);
-  const allUrls = [...driveUrlsInHtml, ...ytUrlsInHtml];
+it('All Drive and YouTube links with data-resource-id in index.html strictly match registered URLs', () => {
+  const aRegex = /<a\s+([^>]*data-resource-id=["']([^"']+)["'][^>]*)>/g;
+  let m;
+  let testedLinks = 0;
 
-  assert(allUrls.length > 0, 'Should find URLs in HTML');
-  allUrls.forEach(url => {
-    assert(url.startsWith('https://'), `Invalid URL protocol: ${url}`);
-  });
+  while ((m = aRegex.exec(htmlContent)) !== null) {
+    const attrs = m[1];
+    const resourceId = m[2];
+    const hrefMatch = attrs.match(/href=["']([^"']+)["']/);
+    if (hrefMatch) {
+      testedLinks++;
+      const href = hrefMatch[1].replace(/&amp;/g, '&');
+      const registeredEntity = registryJson.flatIndex[resourceId];
+      assert(registeredEntity, `Resource ID "${resourceId}" found in HTML but missing from registry`);
+      assert.strictEqual(
+        href,
+        registeredEntity.url,
+        `URL mismatch for resource ${resourceId}: expected ${registeredEntity.url}, got ${href}`
+      );
+    }
+  }
+
+  assert(testedLinks >= 65, `Expected at least 65 linked resources in HTML, found ${testedLinks}`);
 });
 
 it('Vanilla JS registry module loads seamlessly and matches JSON data', () => {
