@@ -1078,6 +1078,33 @@
     return { courses: courses };
   }
 
+  // Admin account deletion is performed server-side by a JWT-protected Edge Function.
+  async function deleteUser(userId) {
+    var client = getClient();
+    if (!client) throw new Error('Supabase client unavailable');
+    if (!userId) throw new Error('معرّف المستخدم مطلوب.');
+
+    var result = await client.functions.invoke('admin-delete-user', {
+      body: { userId: userId }
+    });
+
+    if (result.error) {
+      var message = result.error.message || 'تعذّر الاتصال بخدمة حذف المستخدم.';
+      var context = result.error.context;
+      if (context && typeof context.clone === 'function') {
+        try {
+          var payload = await context.clone().json();
+          if (payload && payload.error) message = payload.error;
+        } catch (ignore) {}
+      }
+      throw new Error(message);
+    }
+    if (!result.data || result.data.success !== true) {
+      throw new Error((result.data && result.data.error) || 'لم يتم تأكيد حذف المستخدم.');
+    }
+    return result.data;
+  }
+
   // 13. signOut
   async function signOut() {
     var bridge = getBridge();
@@ -1104,6 +1131,7 @@
       exportReport: exportReport,
       getAnonymousVisitors: getAnonymousVisitors,
       getFilterOptions: getFilterOptions,
+      deleteUser: deleteUser,
       signOut: signOut
     });
   }
