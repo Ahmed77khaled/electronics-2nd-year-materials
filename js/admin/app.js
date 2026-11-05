@@ -33,10 +33,17 @@
   function sessionLink(id) { return id ? '<a class="lnk mono" href="#/sessions/' + encodeURIComponent(id) + '">' + esc(String(id).slice(0, 8)) + '</a>' : U.NA; }
   function evContext(e) {
     var b = [];
-    if (e.courseTitle) b.push(esc(e.courseTitle));
-    if (e.resourceTitle) b.push(esc(e.resourceTitle) + (e.resourceType ? ' (' + esc(U.typeLabel(e.resourceType)) + ')' : ''));
-    if (e.pagePath) b.push('<span class="mono" dir="ltr">' + esc(e.pagePath) + '</span>');
-    return b.join(' · ');
+    if (e.courseTitle) b.push('<span class="tl-chip tl-chip-course">' + esc(e.courseTitle) + '</span>');
+    if (e.resourceTitle) b.push('<span class="tl-chip tl-chip-res">' + esc(e.resourceTitle) + (e.resourceType ? ' (' + esc(U.typeLabel(e.resourceType)) + ')' : '') + '</span>');
+    if (!e.courseTitle && !e.resourceTitle) {
+      if (e.eventName === 'session_started') b.push('بدء جلسة تصفح في المنصة');
+      else if (e.eventName === 'session_ended') b.push('انتهاء الجلسة وتسجيل الخروج');
+      else if (e.pagePath && e.pagePath !== '/' && e.pagePath !== '/index.html') b.push('<span class="mono" dir="ltr">' + esc(e.pagePath) + '</span>');
+      else b.push('الصفحة الرئيسية');
+    } else if (e.pagePath && e.pagePath !== '/' && e.pagePath !== '/index.html') {
+      b.push('<span class="mono" dir="ltr">' + esc(e.pagePath) + '</span>');
+    }
+    return b.join(' ');
   }
   function propChips(p) {
     if (!p || typeof p !== 'object' || !Object.keys(p).length) return '—';
