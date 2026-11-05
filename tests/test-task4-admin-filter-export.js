@@ -134,7 +134,7 @@ testCase('CSV generation uses CRLF rows and every cell passes through the escapi
   vm.runInNewContext(csvCellSource + ';' + toCsvSource + '; this.toCsv = toCsv;', sandbox);
   assert.strictEqual(
     sandbox.toCsv(['Name', 'Value'], [['A, B', '1'], ['Line 2', 'x"y']]),
-    '"Name","Value"\\r\\n"A, B","1"\\r\\n"Line 2","x""y"'
+    '"Name","Value"\r\n"A, B","1"\r\n"Line 2","x""y"'
   );
 });
 
