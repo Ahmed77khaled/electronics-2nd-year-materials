@@ -136,14 +136,14 @@
     if (value === null || value === undefined) return '""';
     var text = String(value);
     // Prevent spreadsheet formula execution in exported text cells.
-    if (typeof value !== 'number' && /^[\\s]*[=+\\-@]/.test(text)) text = "'" + text;
+    if (typeof value !== 'number' && /^[\s]*[=+\-@]/.test(text)) text = "'" + text;
     return '"' + text.replace(/"/g, '""') + '"';
   }
 
   function toCsv(headers, rows) {
     return [headers].concat(rows).map(function (row) {
       return row.map(csvCell).join(',');
-    }).join('\\r\\n');
+    }).join('\r\n');
   }
 
   function isResourceClick(eventName) {
