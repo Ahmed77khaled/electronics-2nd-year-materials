@@ -64,6 +64,9 @@ select, input[type="date"], input[type="search"] { min-height: 40px; padding: 0 
 .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; } .cards-3 { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
 .back { display: inline-flex; align-items: center; gap: 8px; color: var(--navy); font-weight: 700; text-decoration: none; width: fit-content; } .back:hover { text-decoration: underline; }
 .profile { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; } .profile h2 { margin: 0; font-size: 20px; }
+.profile-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.btn-danger { background: var(--err-bg); border-color: #FECACA; color: var(--err); }
+.btn-danger:hover:not(:disabled) { background: #FEE2E2; border-color: var(--err); }
 .kvs { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; } .kv { display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow-wrap: anywhere; } .kv span { font-size: 12.5px; color: var(--muted); font-weight: 600; }
 .course header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; } .course h3 { margin: 0; font-size: 15.5px; } .rank { background: var(--badge, #DBEAFE); color: var(--navy); border-radius: 999px; padding: 2px 10px; font-weight: 800; font-size: 12.5px; }
 .mini { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; } .mini div { display: flex; flex-direction: column; background: #F1F5F9; border-radius: 10px; padding: 8px 10px; } .mini span { font-size: 12px; color: var(--muted); } .mini strong { font-size: 17px; color: var(--navy); }

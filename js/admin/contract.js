@@ -22,7 +22,7 @@
     'checkAccess', 'getOverview', 'getUsers', 'getAnonymousVisitors', 'getUserDetails', 'getUserSessions', 'getSessions',
     'getSessionDetails', 'getActivityEvents', 'getCourseAnalytics', 'getResourceAnalytics', 'exportReport'
   ];
-  var OPTIONAL = ['getFilterOptions', 'signOut'];
+  var OPTIONAL = ['getFilterOptions', 'signOut', 'deleteUser'];
 
   var current = { adapter: null, mock: false };
 

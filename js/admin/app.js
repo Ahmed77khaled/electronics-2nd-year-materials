@@ -296,11 +296,37 @@
       var kv = function (k, v) { return '<div class="kv"><span>' + k + '</span><strong>' + v + '</strong></div>'; };
       var avg = st.sessions ? st.totalSeconds / st.sessions : null;
       main.innerHTML = '<a class="back" href="#/users">' + U.icon('back') + ' كل المستخدمين</a>' +
-        '<section class="card profile"><div class="who big">' + U.avatar(u) + '<div><h2>' + esc(u.name || '—') + '</h2><div class="muted" dir="ltr">' + esc(u.email || '') + '</div></div></div>' + U.chip(U.STATUS, u.status) + '</section>' +
+        '<section class="card profile"><div class="who big">' + U.avatar(u) + '<div><h2>' + esc(u.name || '—') + '</h2><div class="muted" dir="ltr">' + esc(u.email || '') + '</div></div></div>' +
+        '<div class="profile-actions">' + U.chip(U.STATUS, u.status) +
+        (D.has('deleteUser') && !D.isMock() && !(state.access && state.access.admin && state.access.admin.id === u.id)
+          ? '<button type="button" class="btn btn-danger btn-sm" id="delete-user">حذف المستخدم</button>' : '') +
+        '</div></section>' +
         '<div class="grid-2"><section class="card"><h3 class="card-t">بيانات المستخدم</h3><div class="kvs">' + kv('معرّف المستخدم', '<span class="mono" dir="ltr">' + esc(u.id) + '</span>') + kv('تاريخ التسجيل', U.dateTime(u.registeredAt)) + kv('آخر تسجيل دخول', U.dateTime(u.lastLoginAt)) + kv('آخر نشاط', U.dateTime(u.lastActiveAt)) + '</div></section>' +
         '<section class="card"><h3 class="card-t">إحصاءات التفاعل</h3><div class="kvs">' + kv('إجمالي الجلسات', U.num(st.sessions)) + kv('إجمالي الوقت', U.dur(st.totalSeconds)) + kv('متوسط مدة الجلسة', U.dur(avg)) + kv('الصفحات المفتوحة', U.num(st.pageViews)) + kv('زيارات المواد', U.num(st.courseVisits)) + kv('ضغطات الموارد', U.num(st.resourceClicks)) + kv('أول نشاط', U.dateTime(st.firstActivityAt)) + kv('آخر نشاط', U.dateTime(st.lastActiveAt || u.lastActiveAt)) + '</div></section></div>' +
         '<section class="card flush"><h3 class="card-t pad">سجل الجلسات</h3><div id="u-sessions"></div></section>' +
         '<section class="card"><h3 class="card-t">الخط الزمني للنشاط</h3><div id="u-tl"></div></section>';
+      var deleteButton = $('delete-user');
+      if (deleteButton) {
+        deleteButton.addEventListener('click', function () {
+          var identity = u.name || u.email || 'هذا المستخدم';
+          var confirmed = root.confirm(
+            'هل أنت متأكد من حذف حساب «' + identity + '» نهائيًا؟\\n' +
+            'سيتم حذف حساب الدخول وملفه الشخصي وسجلات نشاطه. لا يمكن التراجع عن هذه الخطوة.'
+          );
+          if (!confirmed) return;
+
+          deleteButton.disabled = true;
+          deleteButton.textContent = 'جارٍ الحذف…';
+          D.call('deleteUser', id).then(function () {
+            U.toast('تم حذف حساب المستخدم بنجاح', 'ok');
+            location.hash = '#/users';
+          }).catch(function (error) {
+            deleteButton.disabled = false;
+            deleteButton.textContent = 'حذف المستخدم';
+            U.toast(error && error.message ? error.message : 'تعذّر حذف المستخدم', 'err');
+          });
+        });
+      }
       loadSessions();
       loadTimeline(true);
     }, function () { userDetail(id); });

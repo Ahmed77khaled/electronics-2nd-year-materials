@@ -44,6 +44,7 @@ Any field may be `null` → UI shows «غير متاح».
 | `getResourceAnalytics(filters)` | `{ items: [{ resourceId, title, courseId, courseTitle, type, clicks, uniqueUsers, lastClickedAt }], series: [{date,value}] }` (UI sorts/paginates this list client-side) |
 | `exportReport(type, filters)` | `{ filename, csv }`; `type` ∈ `users | visitors | sessions | courses | resources | daily`. Must honour the same filters. Visitor report accepts `visitorSearch`. Empty `csv` → "no data" toast |
 | `getFilterOptions()` *(optional)* | `{ courses: [{id,title}], resourceTypes?: [...] }` — fills the course / resource-type selects |
+| `deleteUser(userId)` *(optional)* | Permanently deletes a non-admin Auth account through the JWT-protected `admin-delete-user` Edge Function; self-deletion and admin deletion are blocked |
 | `signOut()` *(optional)* | Promise; the UI also dispatches `admin:logout-request` on `document` |
 
 ## Measurement definitions and limitations

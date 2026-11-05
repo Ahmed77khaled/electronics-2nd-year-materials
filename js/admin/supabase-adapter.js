@@ -207,6 +207,7 @@
     return {
       granted: true,
       admin: {
+        id: user.id,
         name: meta.full_name || meta.name || (user.email ? user.email.split('@')[0] : 'المشرف'),
         email: user.email,
         avatarUrl: meta.avatar_url || meta.picture || null

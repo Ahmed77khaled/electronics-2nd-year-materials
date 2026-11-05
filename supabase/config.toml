@@ -1,0 +1,3 @@
+# Edge Functions called from the authenticated admin dashboard.
+[functions.admin-delete-user]
+verify_jwt = true
