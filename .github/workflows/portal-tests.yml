@@ -39,6 +39,7 @@ jobs:
           node --check tests/test-task1-admin-loading.js
           node --check tests/test-task3-admin-metrics.js
           node --check tests/test-task4-admin-filter-export.js
+          node --check tests/test-task5-report-user-autocomplete.js
 
       - name: Run Portal Regression Tests
         run: node tests/test-suite.js
@@ -51,3 +52,6 @@ jobs:
 
       - name: Run Admin Filter and Export Acceptance Tests
         run: node tests/test-task4-admin-filter-export.js
+
+      - name: Run Report User Autocomplete Acceptance Tests
+        run: node tests/test-task5-report-user-autocomplete.js
