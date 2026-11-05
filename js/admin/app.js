@@ -689,7 +689,7 @@
   }
 
 
-  var NAV = [['overview', 'نظرة عامة', 'overview', overview], ['users', 'المستخدمون', 'users', users], ['visitors', 'الزوار بدون تسجيل', 'users', visitors], ['sessions', 'الجلسات', 'sessions', sessions], ['logs', 'سجل النشاط', 'logs', logs],
+  var NAV = [['overview', 'نظرة عامة', 'overview', overview], ['users', 'المستخدمون', 'users', users], ['visitors', 'زيارات شاشة الدخول', 'users', visitors], ['sessions', 'الجلسات', 'sessions', sessions], ['logs', 'سجل النشاط', 'logs', logs],
     ['courses', 'تحليلات المواد', 'courses', courses], ['resources', 'تحليلات الموارد', 'resources', resources], ['reports', 'التقارير', 'reports', reports]];
 
   function route() {
