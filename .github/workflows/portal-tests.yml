@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - feature/resource-registry-supabase
+      - 'feature/**'
+      - 'fix/**'
   pull_request:
     branches:
       - main
@@ -30,6 +32,14 @@ jobs:
           node --check js/tracker.js
           node --check tests/test-suite.js
           node --check scripts/seed-supabase.js
+          node --check js/admin/contract.js
+          node --check js/admin/supabase-adapter.js
+          node --check js/admin/ui.js
+          node --check js/admin/app.js
+          node --check tests/test-task1-admin-loading.js
 
-      - name: Run automated regression tests
+      - name: Run Portal Regression Tests
         run: node tests/test-suite.js
+
+      - name: Run Admin Dashboard Acceptance Tests
+        run: node tests/test-task1-admin-loading.js
